@@ -69,6 +69,13 @@
   .toolbar input.q{flex:1;min-width:200px}
   .toolbar .btn{cursor:pointer}
   .rd{font-size:.64rem;font-weight:800;color:#047857;background:#d1fae5;border:1px solid #bbf7d0;border-radius:999px;padding:3px 8px}
+  .qtable{width:100%;border-collapse:collapse;font-size:.85rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)}
+  .qtable th,.qtable td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--border);vertical-align:top}
+  .qtable th{background:var(--surface-2);font-weight:700;color:var(--ink-2);font-size:.7rem;text-transform:uppercase;letter-spacing:.03em}
+  .qtable tr:last-child td{border-bottom:none}.qtable tbody tr{cursor:pointer}.qtable tbody tr:hover{background:var(--surface-2)}
+  .qtable .good{color:var(--green);font-weight:700}.qtable .warn{color:#b45309;font-weight:700}
+  .prereq-link{cursor:pointer;color:var(--indigo);text-decoration:underline}
+  .viewintro{color:var(--ink-3);font-size:.88rem;margin:-2px 0 16px}
   .scorebar{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:11px 15px;margin-bottom:14px;box-shadow:var(--shadow)}
   .scorebar .track{flex:1;height:8px;background:#eef1f8;border-radius:999px;overflow:hidden}.scorebar .fill{height:100%;background:var(--grad);width:0}
   .srs-wrap{max-width:620px;margin:0 auto;text-align:center}
@@ -87,7 +94,7 @@
 </head>
 <body>
 <nav class="nav"><div class="nav-in"><div class="logo"><span class="dot"></span> LearnPack</div><span class="sub">bibliothèque d'apprentissage sourcée</span>
-  <div class="right"><a id="home">▦ Bibliothèque</a></div></div></nav>
+  <div class="right"><a id="home">▦ Bibliothèque</a><a id="graphBtn">🕸 Parcours</a><a id="qualBtn">✓ Qualité</a></div></div></nav>
 <div class="wrap" id="app"></div>
 
 <script src="packs.bundle.js"></script>
@@ -171,7 +178,7 @@ function open(slug){ markRead(slug); Object.assign(state,{slug,tab:'doc',answers
 function renderPack(){
   const p=pack();
   let body = state.tab==='doc'?renderDoc(p): state.tab==='quiz'?renderQuiz(p): state.tab==='srs'?renderSrs(p):renderSrc(p);
-  const pre=(p.prerequisites||[]).length?'<div class="pre-req">Prérequis : '+p.prerequisites.map(esc).join(', ')+'</div>':'';
+  const pre=(p.prerequisites||[]).length?'<div class="pre-req">Prérequis : '+p.prerequisites.map(s=>'<a class="prereq-link" data-s="'+esc(s)+'">'+esc(s)+'</a>').join(', ')+'</div>':'';
   app.innerHTML='<div class="crumb"><a id="bk">Bibliothèque</a> › '+esc(p.kind)+'</div>'
     +'<div class="thead"><h2>'+esc(p.title)+'</h2><div class="tag">'+esc(p.tagline)+'</div>'+pre+'</div>'
     +'<div class="tabs"><button data-t="doc" class="'+(state.tab==='doc'?'active':'')+'">📖 Cours</button>'
@@ -179,6 +186,7 @@ function renderPack(){
     +'<button data-t="srs" class="'+(state.tab==='srs'?'active':'')+'">🃏 Révision ('+dueCount(p)+')</button>'
     +'<button data-t="src" class="'+(state.tab==='src'?'active':'')+'">🔗 Sources</button></div><div id="tb">'+body+'</div>';
   document.getElementById('bk').onclick=renderHome;
+  app.querySelectorAll('.pre-req .prereq-link').forEach(a=>a.onclick=()=>open(a.dataset.s));
   app.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{state.tab=b.dataset.t;state.card=0;state.flip=false;renderPack();});
   if(state.tab==='doc') initMermaid();
   if(state.tab==='quiz') wireQuiz(p);
@@ -280,7 +288,30 @@ function renderSrc(p){
     + (p.provenance?'<p style="font-size:.78rem;color:var(--ink-3);margin-top:14px">Généré par '+esc(p.provenance.generator)+' · relu : '+(p.provenance.humanReviewed?'oui':'non')+(p.provenance.judge?' · juge '+esc(p.provenance.judge.score)+'/100':'')+(p.provenance.lastFreshnessCheck?' · fraîcheur vérifiée le '+esc(p.provenance.lastFreshnessCheck):'')+'</p>':'');
 }
 
+function safeId(s){ return 'n_'+String(s).replace(/[^a-z0-9]/gi,'_'); }
+function renderGraph(){
+  state.slug=null;
+  const nodes=PACKS.map(p=>safeId(p.slug)+'["'+String(p.title).replace(/"/g,"'")+'"]');
+  const edges=[]; PACKS.forEach(p=>(p.prerequisites||[]).forEach(pr=>{ if(PACKS.find(x=>x.slug===pr)) edges.push(safeId(pr)+' --> '+safeId(p.slug)); }));
+  const mer='graph LR\n'+nodes.join('\n')+(edges.length?'\n'+edges.join('\n'):'');
+  const list=PACKS.map(p=>'<li><a class="prereq-link" data-s="'+p.slug+'">'+esc(p.title)+'</a>'+((p.prerequisites||[]).length?' <span style="color:var(--ink-3)">← requiert '+p.prerequisites.map(esc).join(', ')+'</span>':'')+'</li>').join('');
+  app.innerHTML='<h2 style="margin-bottom:6px">Parcours d’apprentissage</h2><div class="viewintro">Les flèches vont du prérequis vers le pack qui en dépend ('+edges.length+' lien(s) entre '+PACKS.length+' packs).</div><div class="mermaid">'+esc(mer)+'</div><h3 style="font-size:1rem;margin:18px 0 6px">Packs &amp; prérequis</h3><ul>'+list+'</ul>';
+  mermaidTried=false; initMermaid();
+  app.querySelectorAll('.prereq-link').forEach(a=>a.onclick=()=>open(a.dataset.s));
+}
+function renderQuality(){
+  state.slug=null;
+  const rows=PACKS.map(p=>{ const pv=p.provenance||{}, cl=p.claims||[];
+    const use={}; cl.forEach(c=>use[c.sourceId]=(use[c.sourceId]||0)+1); const max=cl.length?Math.max(...Object.values(use)):0; const divPct=cl.length?Math.round(max/cl.length*100):0;
+    const dep=cl.filter(c=>c.deprecated).length; const fr=pv.freshness;
+    const frTxt=fr?(((fr.drift||fr.unreachable)?'<span class="warn">dérive '+(fr.drift||0)+'</span>':'<span class="good">ok</span>')+' <small>('+(fr.checkedAt||'?')+')</small>'):'<span style="color:var(--ink-3)">non vérifié</span>';
+    return '<tr data-s="'+p.slug+'"><td><b>'+esc(p.title)+'</b></td><td>'+esc(p.kind)+'</td><td>'+(pv.judge?'<span class="'+(pv.judge.score>=80?'good':'warn')+'">'+esc(pv.judge.score)+'</span>':'-')+'</td><td>'+(p.sources||[]).length+' · <span class="'+(divPct>60?'warn':'good')+'">'+divPct+'%</span></td><td>'+(dep?'<span class="warn">'+dep+' ⚠</span>':'0')+'</td><td>'+frTxt+'</td><td>'+(pv.humanReviewed?'✓':'—')+'</td></tr>';}).join('');
+  app.innerHTML='<h2 style="margin-bottom:6px">Tableau de bord qualité</h2><div class="viewintro">Score jury · diversité (part max d’une source dans les claims) · claims dépréciés · fraîcheur · relu humainement.</div><table class="qtable"><thead><tr><th>Pack</th><th>Type</th><th>Jury</th><th>Sources · div.</th><th>Déprécié</th><th>Fraîcheur</th><th>Relu</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  app.querySelectorAll('.qtable tbody tr').forEach(tr=>tr.onclick=()=>open(tr.dataset.s));
+}
 document.getElementById('home').onclick=renderHome;
+document.getElementById('graphBtn').onclick=renderGraph;
+document.getElementById('qualBtn').onclick=renderQuality;
 renderHome();
 </script>
 </body>
