@@ -62,6 +62,12 @@
   .depnote{font-size:.78rem;color:#b91c1c;margin-top:3px}
   .srcstatus{font-size:.62rem;font-weight:800;text-transform:uppercase;border-radius:999px;padding:2px 7px;margin-left:6px}
   .srcstatus.current{color:#047857;background:#d1fae5}.srcstatus.superseded,.srcstatus.deprecated{color:#b45309;background:#fef3c7}
+  .vchip{display:inline-block;font-size:.7rem;font-weight:700;padding:1px 8px;border-radius:999px;margin-left:6px;vertical-align:middle;border:1px solid;white-space:nowrap}
+  .vchip.intro{color:#3730a3;background:#e0e7ff;border-color:#c7d2fe}.vchip.cur{color:#047857;background:#d1fae5;border-color:#a7f3d0}
+  .vchip.prev{color:#92400e;background:#fef9c3;border-color:#fde68a}.vchip.dep{color:#b45309;background:#fef3c7;border-color:#fcd34d}
+  .vchip.rem{color:#b91c1c;background:#fee2e2;border-color:#fecaca}.vchip.fut{color:#6b21a8;background:#f3e8ff;border-color:#e9d5ff}
+  .verbanner{font-size:.82rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:9px 12px;margin:6px 0 12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;line-height:1.9}
+  .verbanner .lag{font-weight:700}.verbanner .lag.warn{color:#b45309}
   .freshness{font-size:.78rem;color:var(--ink-3);margin:-2px 0 12px}
   .stale{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:.85rem;font-weight:600}
   .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
@@ -200,6 +206,17 @@ function renderDoc(p){
   let h='';
   if(pv.stale) h+='<div class="stale">⚠ Sources à re-vérifier'+((pv.stale.driftedClaims||[]).length?' — citations dérivées : '+pv.stale.driftedClaims.join(', '):'')+((pv.stale.unreachableSources||[]).length?' · injoignables : '+pv.stale.unreachableSources.join(', '):'')+'</div>';
   h+='<div class="freshness">Vérifié au '+esc(fr||'?')+(pv.humanReviewed?' · relu humainement':'')+(pv.judge?' · jury '+esc(pv.judge.score)+'/100':'')+'</div>';
+  if(p.technology){ const va=pv.versionAudit||null, lagWarn=va&&va.lag&&va.lag!=='à jour';
+    h+='<div class="verbanner"><b>'+esc(p.technology.name)+'</b> — ce pack décrit <b>v'+esc(p.technology.currentVersion)+'</b>'
+      +(va&&va.latestKnown?' · dernière connue <b>v'+esc(va.latestKnown)+'</b>':'')
+      +(va&&va.lag?' · <span class="lag'+(lagWarn?' warn':'')+'">'+esc(va.lag)+'</span>':'')
+      +(va?'<span style="flex-basis:100%;height:0"></span>'
+        +'<span class="vchip cur">actuelles '+(va.current||0)+'</span>'
+        +(va.preview?'<span class="vchip prev">preview '+va.preview+'</span>':'')
+        +(va.future?'<span class="vchip fut">à venir '+va.future+'</span>':'')
+        +(va.deprecated?'<span class="vchip dep">dépréciées '+va.deprecated+'</span>':'')
+        +(va.removed?'<span class="vchip rem">retirées '+va.removed+'</span>':''):'')
+      +'</div>'; }
   h+='<div class="doc">';
   h+='<h3>Synthèse</h3>'+fmt(p.summary);
   h+='<h3>Le principe</h3>'+fmt(p.principle);
@@ -209,7 +226,14 @@ function renderDoc(p){
   if((p.pitfalls||[]).length){ h+='<h3>Subtilités & pièges</h3><ul>'+p.pitfalls.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>'; }
   if((p.checklist||[]).length){ h+='<h3>Checklist</h3><ul>'+p.checklist.map(x=>'<li>☐ '+esc(x)+'</li>').join('')+'</ul>'; }
   if((p.claims||[]).length){ const byId=Object.fromEntries((p.sources||[]).map(s=>[s.id,s]));
-    h+='<h3>Affirmations sourcées</h3>'+p.claims.map(c=>{const s=byId[c.sourceId];const dep=c.deprecated===true;return '<div class="claim'+(dep?' depr':'')+'">'+esc(c.statement)+(dep?' <span class="dep">déprécié</span>':'')+(dep&&c.deprecationNote?'<div class="depnote">⚠ '+esc(c.deprecationNote)+'</div>':'')+'<div class="q">« '+esc(c.quote)+' »</div><div class="src">— '+(s?'<a href="'+esc(s.url)+'" target="_blank">'+esc(s.title)+' ↗</a>':esc(c.sourceId))+'</div></div>';}).join(''); }
+    const vstatus=(pv.versionAudit&&pv.versionAudit.claims)?Object.fromEntries(pv.versionAudit.claims.map(a=>[a.id,a.status])):{};
+    const STLAB={preview:['prev','preview'],deprecated:['dep','déprécié'],removed:['rem','retiré'],future:['fut','à venir']};
+    const vchips=c=>{const v=c.versioning;if(!v)return '';const out=[];if(v.introducedIn)out.push('<span class="vchip intro">dès v'+esc(v.introducedIn)+'</span>');
+      const st=vstatus[c.id], lab=STLAB[st];
+      if(lab){let t=lab[1];if(st==='deprecated'&&v.deprecatedIn)t='déprécié v'+v.deprecatedIn;if(st==='removed'&&v.removedIn)t='retiré v'+v.removedIn;out.push('<span class="vchip '+lab[0]+'">'+esc(t)+'</span>');}
+      else if(v.removedIn)out.push('<span class="vchip rem">retiré v'+esc(v.removedIn)+'</span>');else if(v.deprecatedIn)out.push('<span class="vchip dep">déprécié v'+esc(v.deprecatedIn)+'</span>');
+      return out.join('');};
+    h+='<h3>Affirmations sourcées</h3>'+p.claims.map(c=>{const s=byId[c.sourceId];const dep=c.deprecated===true;return '<div class="claim'+(dep?' depr':'')+'">'+esc(c.statement)+vchips(c)+(dep?' <span class="dep">déprécié</span>':'')+(dep&&c.deprecationNote?'<div class="depnote">⚠ '+esc(c.deprecationNote)+'</div>':'')+((c.versioning&&c.versioning.note)?'<div class="depnote" style="color:#3730a3">↪ '+esc(c.versioning.note)+'</div>':'')+'<div class="q">« '+esc(c.quote)+' »</div><div class="src">— '+(s?'<a href="'+esc(s.url)+'" target="_blank">'+esc(s.title)+' ↗</a>':esc(c.sourceId))+'</div></div>';}).join(''); }
   if((p.qna||[]).length){ h+='<h3>Questions / réponses par niveau</h3>';
     ['junior','intermediaire','senior'].forEach(lv=>{ const items=p.qna.filter(x=>x.level===lv); if(!items.length) return;
       h+='<details class="qna-grp" open><summary><span class="lvl '+lv+'">'+(lv==='intermediaire'?'Intermédiaire':lv[0].toUpperCase()+lv.slice(1))+'</span> &nbsp;'+items.length+' question(s)</summary>'
@@ -307,8 +331,10 @@ function renderQuality(){
     const use={}; cl.forEach(c=>use[c.sourceId]=(use[c.sourceId]||0)+1); const max=cl.length?Math.max(...Object.values(use)):0; const divPct=cl.length?Math.round(max/cl.length*100):0;
     const dep=cl.filter(c=>c.deprecated).length; const fr=pv.freshness;
     const frTxt=fr?(((fr.drift||fr.unreachable)?'<span class="warn">dérive '+(fr.drift||0)+'</span>':'<span class="good">ok</span>')+' <small>('+(fr.checkedAt||'?')+')</small>'):'<span style="color:var(--ink-3)">non vérifié</span>';
-    return '<tr data-s="'+p.slug+'"><td><b>'+esc(p.title)+'</b></td><td>'+esc(p.kind)+'</td><td>'+(pv.judge?'<span class="'+(pv.judge.score>=80?'good':'warn')+'">'+esc(pv.judge.score)+'</span>':'-')+'</td><td>'+(p.sources||[]).length+' · <span class="'+(divPct>60?'warn':'good')+'">'+divPct+'%</span></td><td>'+(dep?'<span class="warn">'+dep+' ⚠</span>':'0')+'</td><td>'+frTxt+'</td><td>'+(pv.humanReviewed?'✓':'—')+'</td></tr>';}).join('');
-  app.innerHTML='<h2 style="margin-bottom:6px">Tableau de bord qualité</h2><div class="viewintro">Score jury · diversité (part max d’une source dans les claims) · claims dépréciés · fraîcheur · relu humainement.</div><table class="qtable"><thead><tr><th>Pack</th><th>Type</th><th>Jury</th><th>Sources · div.</th><th>Déprécié</th><th>Fraîcheur</th><th>Relu</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    const va=pv.versionAudit, tech=p.technology;
+    const verTxt=tech?(va?('v'+esc(tech.currentVersion)+(va.latestKnown&&va.latestKnown!==tech.currentVersion?'→v'+esc(va.latestKnown):'')+' '+((va.removed||va.deprecated)?'<span class="warn">'+[va.deprecated?va.deprecated+' dépr.':'',va.removed?va.removed+' retir.':''].filter(Boolean).join(' · ')+'</span>':'<span class="good">'+esc(va.lag||'à jour')+'</span>')):'v'+esc(tech.currentVersion)+' <small>(non audité)</small>'):'<span style="color:var(--ink-3)">—</span>';
+    return '<tr data-s="'+p.slug+'"><td><b>'+esc(p.title)+'</b></td><td>'+esc(p.kind)+'</td><td>'+(pv.judge?'<span class="'+(pv.judge.score>=80?'good':'warn')+'">'+esc(pv.judge.score)+'</span>':'-')+'</td><td>'+(p.sources||[]).length+' · <span class="'+(divPct>60?'warn':'good')+'">'+divPct+'%</span></td><td>'+(dep?'<span class="warn">'+dep+' ⚠</span>':'0')+'</td><td>'+verTxt+'</td><td>'+frTxt+'</td><td>'+(pv.humanReviewed?'✓':'—')+'</td></tr>';}).join('');
+  app.innerHTML='<h2 style="margin-bottom:6px">Tableau de bord qualité</h2><div class="viewintro">Score jury · diversité (part max d’une source dans les claims) · claims dépréciés · <b>versions</b> (pack vs dernière connue + spécificités retirées/dépréciées) · fraîcheur · relu humainement.</div><table class="qtable"><thead><tr><th>Pack</th><th>Type</th><th>Jury</th><th>Sources · div.</th><th>Déprécié</th><th>Versions</th><th>Fraîcheur</th><th>Relu</th></tr></thead><tbody>'+rows+'</tbody></table>';
   app.querySelectorAll('.qtable tbody tr').forEach(tr=>tr.onclick=()=>open(tr.dataset.s));
 }
 function renderProjects(){
