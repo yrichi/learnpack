@@ -64,6 +64,7 @@
   .srcstatus.current{color:#047857;background:#d1fae5}.srcstatus.superseded,.srcstatus.deprecated{color:#b45309;background:#fef3c7}
   .vchip{display:inline-block;font-size:.7rem;font-weight:700;padding:1px 8px;border-radius:999px;margin-left:6px;vertical-align:middle;border:1px solid;white-space:nowrap}
   .vchip.intro{color:#3730a3;background:#e0e7ff;border-color:#c7d2fe}.vchip.cur{color:#047857;background:#d1fae5;border-color:#a7f3d0}
+  .vchip.f-direct{color:#047857;background:#ecfdf5;border-color:#a7f3d0}.vchip.f-synth{color:#3730a3;background:#e0e7ff;border-color:#c7d2fe}
   .vchip.prev{color:#92400e;background:#fef9c3;border-color:#fde68a}.vchip.dep{color:#b45309;background:#fef3c7;border-color:#fcd34d}
   .vchip.rem{color:#b91c1c;background:#fee2e2;border-color:#fecaca}.vchip.fut{color:#6b21a8;background:#f3e8ff;border-color:#e9d5ff}
   .verbanner{font-size:.82rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:9px 12px;margin:6px 0 12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;line-height:1.9}
@@ -123,6 +124,13 @@ function exportProgress(){ const data={kind:'learnpack-progress',progress:prog()
   const b=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='learnpack-progress.json'; a.click(); }
 function importProgress(file){ const r=new FileReader(); r.onload=()=>{ try{ const d=JSON.parse(r.result); if(d.progress) saveProg({...prog(),...d.progress}); if(d.srs) for(const[k,v] of Object.entries(d.srs)) localStorage.setItem(k,JSON.stringify(v)); renderHome(); alert('Progression importée ✓'); }catch(e){ alert('Fichier invalide.'); } }; r.readAsText(file); }
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+// Badge de fidélité d'une affirmation à partir de son verdict (provenance.faithfulness.claims[]).
+// entailed → citation directe, partial → synthèse ; tout autre verdict / absence → aucun badge (les packs publiés sont gated à 0 unsupported/error).
+function fbadge(a){
+  if(!a) return '';
+  const L = { entailed:['f-direct','citation directe'], partial:['f-synth','synthèse'] }[a.verdict];
+  return L ? '<span class="vchip '+L[0]+'"'+(a.rationale?' title="'+esc(a.rationale)+'"':'')+'>'+L[1]+'</span>' : '';
+}
 
 // --- mini-markdown pour summary/principle/examples ---
 function fmt(t){
@@ -231,13 +239,14 @@ function renderDoc(p){
   if((p.checklist||[]).length){ h+='<h3>Checklist</h3><ul>'+p.checklist.map(x=>'<li>☐ '+esc(x)+'</li>').join('')+'</ul>'; }
   if((p.claims||[]).length){ const byId=Object.fromEntries((p.sources||[]).map(s=>[s.id,s]));
     const vstatus=(pv.versionAudit&&pv.versionAudit.claims)?Object.fromEntries(pv.versionAudit.claims.map(a=>[a.id,a.status])):{};
+    const fbyId=Object.fromEntries(((pv.faithfulness&&pv.faithfulness.claims)||[]).map(a=>[a.id,a]));
     const STLAB={preview:['prev','preview'],deprecated:['dep','déprécié'],removed:['rem','retiré'],future:['fut','à venir']};
     const vchips=c=>{const v=c.versioning;if(!v)return '';const out=[];if(v.introducedIn)out.push('<span class="vchip intro">dès v'+esc(v.introducedIn)+'</span>');
       const st=vstatus[c.id], lab=STLAB[st];
       if(lab){let t=lab[1];if(st==='deprecated'&&v.deprecatedIn)t='déprécié v'+v.deprecatedIn;if(st==='removed'&&v.removedIn)t='retiré v'+v.removedIn;out.push('<span class="vchip '+lab[0]+'">'+esc(t)+'</span>');}
       else if(v.removedIn)out.push('<span class="vchip rem">retiré v'+esc(v.removedIn)+'</span>');else if(v.deprecatedIn)out.push('<span class="vchip dep">déprécié v'+esc(v.deprecatedIn)+'</span>');
       return out.join('');};
-    h+='<h3>Affirmations sourcées</h3>'+p.claims.map(c=>{const s=byId[c.sourceId];const dep=c.deprecated===true;return '<div class="claim'+(dep?' depr':'')+'">'+esc(c.statement)+vchips(c)+(dep?' <span class="dep">déprécié</span>':'')+(dep&&c.deprecationNote?'<div class="depnote">⚠ '+esc(c.deprecationNote)+'</div>':'')+((c.versioning&&c.versioning.note)?'<div class="depnote" style="color:#3730a3">↪ '+esc(c.versioning.note)+'</div>':'')+'<div class="q">« '+esc(c.quote)+' »</div><div class="src">— '+(s?'<a href="'+esc(s.url)+'" target="_blank">'+esc(s.title)+' ↗</a>':esc(c.sourceId))+'</div></div>';}).join(''); }
+    h+='<h3>Affirmations sourcées</h3>'+p.claims.map(c=>{const s=byId[c.sourceId];const dep=c.deprecated===true;return '<div class="claim'+(dep?' depr':'')+'">'+esc(c.statement)+vchips(c)+fbadge(fbyId[c.id])+(dep?' <span class="dep">déprécié</span>':'')+(dep&&c.deprecationNote?'<div class="depnote">⚠ '+esc(c.deprecationNote)+'</div>':'')+((c.versioning&&c.versioning.note)?'<div class="depnote" style="color:#3730a3">↪ '+esc(c.versioning.note)+'</div>':'')+'<div class="q">« '+esc(c.quote)+' »</div><div class="src">— '+(s?'<a href="'+esc(s.url)+'" target="_blank">'+esc(s.title)+' ↗</a>':esc(c.sourceId))+'</div></div>';}).join(''); }
   if((p.qna||[]).length){ h+='<h3>Questions / réponses par niveau</h3>';
     ['junior','intermediaire','senior'].forEach(lv=>{ const items=p.qna.filter(x=>x.level===lv); if(!items.length) return;
       h+='<details class="qna-grp" open><summary><span class="lvl '+lv+'">'+(lv==='intermediaire'?'Intermédiaire':lv[0].toUpperCase()+lv.slice(1))+'</span> &nbsp;'+items.length+' question(s)</summary>'
