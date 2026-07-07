@@ -132,6 +132,9 @@ function fbadge(a){
   return L ? '<span class="vchip '+L[0]+'"'+(a.rationale?' title="'+esc(a.rationale)+'"':'')+'>'+L[1]+'</span>' : '';
 }
 
+// Lien d'une source : cliquable si http(s), sinon (import:) rendu en texte « document importé ».
+function srcLink(s){ if(!s) return ''; const t=esc(s.title||s.url); return /^https?:\/\//.test(s.url||'')?'<a href="'+esc(s.url)+'" target="_blank">'+t+' ↗</a>':'<span class="imp">'+t+' · document importé</span>'; }
+
 // --- mini-markdown pour summary/principle/examples ---
 function fmt(t){
   t = String(t||'');
@@ -246,7 +249,7 @@ function renderDoc(p){
       if(lab){let t=lab[1];if(st==='deprecated'&&v.deprecatedIn)t='déprécié v'+v.deprecatedIn;if(st==='removed'&&v.removedIn)t='retiré v'+v.removedIn;out.push('<span class="vchip '+lab[0]+'">'+esc(t)+'</span>');}
       else if(v.removedIn)out.push('<span class="vchip rem">retiré v'+esc(v.removedIn)+'</span>');else if(v.deprecatedIn)out.push('<span class="vchip dep">déprécié v'+esc(v.deprecatedIn)+'</span>');
       return out.join('');};
-    h+='<h3>Affirmations sourcées</h3>'+p.claims.map(c=>{const s=byId[c.sourceId];const dep=c.deprecated===true;return '<div class="claim'+(dep?' depr':'')+'">'+esc(c.statement)+vchips(c)+fbadge(fbyId[c.id])+(dep?' <span class="dep">déprécié</span>':'')+(dep&&c.deprecationNote?'<div class="depnote">⚠ '+esc(c.deprecationNote)+'</div>':'')+((c.versioning&&c.versioning.note)?'<div class="depnote" style="color:#3730a3">↪ '+esc(c.versioning.note)+'</div>':'')+'<div class="q">« '+esc(c.quote)+' »</div><div class="src">— '+(s?'<a href="'+esc(s.url)+'" target="_blank">'+esc(s.title)+' ↗</a>':esc(c.sourceId))+'</div></div>';}).join(''); }
+    h+='<h3>Affirmations sourcées</h3>'+p.claims.map(c=>{const s=byId[c.sourceId];const dep=c.deprecated===true;return '<div class="claim'+(dep?' depr':'')+'">'+esc(c.statement)+vchips(c)+fbadge(fbyId[c.id])+(dep?' <span class="dep">déprécié</span>':'')+(dep&&c.deprecationNote?'<div class="depnote">⚠ '+esc(c.deprecationNote)+'</div>':'')+((c.versioning&&c.versioning.note)?'<div class="depnote" style="color:#3730a3">↪ '+esc(c.versioning.note)+'</div>':'')+'<div class="q">« '+esc(c.quote)+' »</div><div class="src">— '+(s?srcLink(s):esc(c.sourceId))+'</div></div>';}).join(''); }
   if((p.qna||[]).length){ h+='<h3>Questions / réponses par niveau</h3>';
     ['junior','intermediaire','senior'].forEach(lv=>{ const items=p.qna.filter(x=>x.level===lv); if(!items.length) return;
       h+='<details class="qna-grp" open><summary><span class="lvl '+lv+'">'+(lv==='intermediaire'?'Intermédiaire':lv[0].toUpperCase()+lv.slice(1))+'</span> &nbsp;'+items.length+' question(s)</summary>'
@@ -323,7 +326,7 @@ function wireSrs(p){
 
 function renderSrc(p){
   return (p.sources||[]).map(s=>{ const st=s.status&&s.status!=='current'?'<span class="srcstatus '+s.status+'">'+esc(s.status)+'</span>':(s.status==='current'?'<span class="srcstatus current">à jour</span>':''); const meta=[s.publisher,s.coversVersion,s.publishedAt].filter(Boolean).map(esc).join(' · ');
-    return '<div class="src"><span class="ty">'+esc(s.type)+'</span><div><a href="'+esc(s.url)+'" target="_blank">'+esc(s.title)+' ↗</a>'+st+(meta?'<div style="font-size:.78rem;color:var(--ink-3)">'+meta+'</div>':'')+'</div></div>';}).join('')
+    return '<div class="src"><span class="ty">'+esc(s.type)+'</span><div>'+srcLink(s)+st+(meta?'<div style="font-size:.78rem;color:var(--ink-3)">'+meta+'</div>':'')+'</div></div>';}).join('')
     + (p.provenance?'<p style="font-size:.78rem;color:var(--ink-3);margin-top:14px">Généré par '+esc(p.provenance.generator)+' · relu : '+(p.provenance.humanReviewed?'oui':'non')+(p.provenance.judge?' · juge '+esc(p.provenance.judge.score)+'/100':'')+(p.provenance.lastFreshnessCheck?' · fraîcheur vérifiée le '+esc(p.provenance.lastFreshnessCheck):'')+'</p>':'');
 }
 
