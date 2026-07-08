@@ -97,6 +97,18 @@
   .src{display:flex;gap:11px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:9px;box-shadow:var(--shadow)}
   .src .ty{flex-shrink:0;font-size:.64rem;font-weight:800;text-transform:uppercase;color:var(--violet);background:#f3f0ff;border:1px solid #e5defb;border-radius:999px;padding:4px 8px;height:fit-content}
   .empty{background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:18px;color:#9a3412}
+  .rex{border-left:3px solid var(--indigo);background:var(--surface-2);border-radius:0 8px 8px 0;padding:10px 13px;margin:9px 0}
+  .rex.valide{border-left-color:var(--green);background:#f0fdf4}
+  .rex.abandonne{border-left-color:var(--red);background:#fef2f2}
+  .rex.encours{border-left-color:var(--amber);background:#fff7ed}
+  .rex .rexh{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px}
+  .rex .rext{font-weight:750}
+  .rxs{font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.03em;border-radius:999px;padding:2px 8px;white-space:nowrap}
+  .rxs.valide{color:#047857;background:#d1fae5}.rxs.abandonne{color:#b91c1c;background:#fee2e2}.rxs.encours{color:#b45309;background:#fef3c7}
+  .rex .rexd{font-size:.7rem;color:var(--ink-3);font-weight:700;margin-left:auto}
+  .rex .rexl{margin:4px 0;color:var(--ink-2);font-size:.9rem}.rex .rexl b{color:var(--ink)}
+  .rex .rexr{font-size:.88rem;color:var(--green);margin-top:3px}
+  .rex.abandonne .rexr{color:var(--red)}.rex.encours .rexr{color:#b45309}
 </style>
 </head>
 <body>
@@ -356,7 +368,7 @@ function renderQuality(){
 function renderProjects(){
   state.slug=null;
   if(!PROJECTS.length){ app.innerHTML='<div class="empty"><b>Aucun projet.</b> Ajoute <code>projects/&lt;slug&gt;.json</code> puis <code>node bundle.mjs</code>.</div>'; return; }
-  const cards=PROJECTS.map(pr=>'<div class="card" data-p="'+pr.slug+'"><span class="k">projet</span><h3>'+esc(pr.title)+'</h3><div class="tag">'+esc(pr.goal)+'</div><div class="meta"><span class="pill">'+(pr.path||[]).length+' packs</span><span class="pill">'+(pr.lessons||[]).length+' leçons</span>'+(pr.status?'<span class="pill">'+esc(pr.status)+'</span>':'')+'</div></div>').join('');
+  const cards=PROJECTS.map(pr=>'<div class="card" data-p="'+pr.slug+'"><span class="k">projet</span><h3>'+esc(pr.title)+'</h3><div class="tag">'+esc(pr.goal)+'</div><div class="meta">'+((pr.path||[]).length?'<span class="pill">'+pr.path.length+' packs</span>':'')+((pr.lessons||[]).length?'<span class="pill">'+pr.lessons.length+' leçons</span>':'')+((pr.experiments||[]).length?'<span class="pill">'+pr.experiments.length+' expériences</span>':'')+(pr.status?'<span class="pill">'+esc(pr.status)+'</span>':'')+'</div></div>').join('');
   app.innerHTML='<div class="hero"><h1>Projets</h1><p>Un projet relie un <b>parcours de packs</b> à ses <b>leçons</b> (décisions / REX). Les packs restent réutilisables entre projets.</p></div><div class="grid">'+cards+'</div>';
   app.querySelectorAll('.card').forEach(el=>el.onclick=()=>openProject(el.dataset.p));
 }
@@ -366,9 +378,13 @@ function openProject(slug){
   const steps=(pr.path||[]).map((st,i)=>'<li>'+(by[st.packSlug]?'<a class="prereq-link" data-s="'+st.packSlug+'">'+esc(by[st.packSlug].title)+'</a>':'<span style="color:var(--ink-3)">'+esc(st.packSlug)+' <em>(à venir)</em></span>')+(st.why?' — <span style="color:var(--ink-3)">'+esc(st.why)+'</span>':'')+'</li>').join('');
   const lessons=(pr.lessons||[]).map(l=>{ const links=(l.packs||[]).map(s=>by[s]?'<a class="prereq-link" data-s="'+s+'">'+esc(by[s].title)+'</a>':'<span style="color:var(--ink-3)">'+esc(s)+'</span>').join(', ');
     return '<div class="claim"><b>'+esc(l.title)+'</b><div style="margin:4px 0;color:var(--ink-2)">'+esc(l.body)+'</div>'+(l.decision?'<div style="font-size:.83rem;color:var(--green)">→ '+esc(l.decision)+'</div>':'')+(links?'<div class="src" style="margin-top:4px">packs : '+links+'</div>':'')+'</div>'; }).join('');
+  const rxcls=s=>({'validé':'valide','valide':'valide','abandonné':'abandonne','abandonne':'abandonne','en-cours':'encours','en cours':'encours'})[String(s||'').toLowerCase()]||'encours';
+  const rxfmt=s=>esc(s).replace(/`([^`]+)`/g,'<code>$1</code>');
+  const exps=(pr.experiments||[]).map(x=>{ const cls=rxcls(x.status); const links=(x.packs||[]).map(s=>by[s]?'<a class="prereq-link" data-s="'+s+'">'+esc(by[s].title)+'</a>':'<span style="color:var(--ink-3)">'+esc(s)+'</span>').join(', ');
+    return '<div class="rex '+cls+'"><div class="rexh"><span class="rxs '+cls+'">'+esc(x.status||'en-cours')+'</span><span class="rext">'+esc(x.title)+'</span>'+(x.date?'<span class="rexd">'+esc(x.date)+'</span>':'')+'</div>'+(x.tested?'<div class="rexl"><b>Testé —</b> '+rxfmt(x.tested)+'</div>':'')+(x.why?'<div class="rexl"><b>Pourquoi —</b> '+rxfmt(x.why)+'</div>':'')+(x.result?'<div class="rexr">→ '+rxfmt(x.result)+'</div>':'')+(links?'<div class="src" style="margin-top:5px">packs : '+links+'</div>':'')+'</div>'; }).join('');
   const ext=pr.externalCurriculum?'<p><a class="doclink" href="'+esc(pr.externalCurriculum)+'">📚 Curriculum complet (révision) →</a></p>':'';
   app.innerHTML='<div class="crumb"><a id="bkp">Projets</a> › projet</div><div class="thead"><h2>'+esc(pr.title)+'</h2><div class="tag">'+esc(pr.goal)+'</div></div>'
-    +'<div class="doc" style="margin-top:14px">'+fmt(pr.summary)+ext+'<h3>Parcours d’apprentissage</h3><ol>'+steps+'</ol>'+(lessons?'<h3>Leçons &amp; décisions</h3>'+lessons:'')+'</div>';
+    +'<div class="doc" style="margin-top:14px">'+fmt(pr.summary)+ext+(steps?'<h3>Parcours d’apprentissage</h3><ol>'+steps+'</ol>':'')+(exps?'<h3>REX — ce qu’on a testé</h3>'+exps:'')+(lessons?'<h3>Leçons &amp; décisions</h3>'+lessons:'')+'</div>';
   document.getElementById('bkp').onclick=renderProjects;
   app.querySelectorAll('.prereq-link').forEach(a=>a.onclick=()=>open(a.dataset.s));
   window.scrollTo(0,0);
