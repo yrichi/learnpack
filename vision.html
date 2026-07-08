@@ -154,7 +154,8 @@ function select(i,focus){
   [...tabs.children].forEach((t,j)=>{const on=j===i;t.setAttribute("aria-selected",on?"true":"false");t.tabIndex=on?0:-1;if(on&&focus)t.focus();});
   const f=FICHES[i];
   stage.setAttribute("aria-labelledby","tab-"+f.slug);
-  const ordered=[...f.blocks].sort((a,b)=>(a.grounding==="curated"?1:0)-(b.grounding==="curated"?1:0));
+  // MODE (runtime) : filtré du rendu STATIQUE — capabilities sans runtime (notre propre règle selectBlocks).
+  const ordered=[...f.blocks].filter(b=>b.family!=="mode"&&b.grounding!=="runtime").sort((a,b)=>(a.grounding==="curated"?1:0)-(b.grounding==="curated"?1:0));
   const contentish=f.blocks.filter(b=>b.grounding!=="runtime");
   const nSrc=contentish.filter(b=>b.grounding==="grounded"||b.grounding==="derived").length;
   const nSyn=contentish.filter(b=>b.grounding==="mixed").length;
