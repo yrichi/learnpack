@@ -117,17 +117,20 @@
   .pf-fail{color:#b45309}.pf-fix{color:#047857}
   .related{display:flex;flex-direction:column;gap:8px}.rel-grp{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.rel-rel{font-size:.72rem;color:var(--ink-3);min-width:110px}.rel-card{background:#eef2ff;color:#3730a3;padding:3px 10px;border-radius:12px;cursor:pointer;font-size:.82rem;text-decoration:none}.rel-card:hover{background:#e0e7ff}
   .decision{border:1px solid #fcd34d;background:#fffbeb;border-radius:8px;padding:8px 12px;margin:12px 0}.decision h3{margin-top:4px}.cadre-tag{font-size:.68rem;font-weight:600;background:#fde68a;color:#92400e;padding:1px 7px;border-radius:8px;vertical-align:middle}.dec-sub{margin-bottom:6px}
+  .oldrow{border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;margin-bottom:8px;cursor:pointer}.oldrow:hover{background:#f9fafb}.oldhd{margin-bottom:6px}.oldblocks{display:flex;flex-wrap:wrap;gap:5px;margin:3px 0}.oldver{font-size:.76rem;color:#b45309;margin:3px 0}
+  .miss{background:#fee2e2;color:#991b1b;font-size:.74rem;padding:1px 7px;border-radius:8px}.pres{background:#dcfce7;color:#166534;font-size:.74rem;padding:1px 7px;border-radius:8px}
 </style>
 </head>
 <body>
 <nav class="nav"><div class="nav-in"><div class="logo"><span class="dot"></span> LearnPack</div><span class="sub">bibliothèque d'apprentissage sourcée</span>
-  <div class="right"><a id="projBtn">📁 Projets</a><a id="home">▦ Bibliothèque</a><a id="graphBtn">🕸 Parcours</a><a id="qualBtn">✓ Qualité</a></div></div></nav>
+  <div class="right"><a id="projBtn">📁 Projets</a><a id="home">▦ Bibliothèque</a><a id="graphBtn">🕸 Parcours</a><a id="qualBtn">✓ Qualité</a><a id="oldBtn">🕒 Anciennes gén.</a></div></div></nav>
 <div class="wrap" id="app"></div>
 
 <script src="packs.bundle.js"></script>
 <script src="projects.bundle.js"></script>
 <script src="srs.bundle.js"></script>
 <script src="pack-view.bundle.js"></script>
+<script src="staleness.bundle.js"></script>
 <script>
 const PACKS = (window.LEARNPACKS || []);
 const PROJECTS = (window.LEARNPROJECTS || []);
@@ -388,6 +391,20 @@ function renderQuality(){
   app.innerHTML='<h2 style="margin-bottom:6px">Tableau de bord qualité</h2><div class="viewintro">Score jury · diversité (part max d’une source dans les claims) · claims dépréciés · <b>versions</b> (pack vs dernière connue + spécificités retirées/dépréciées) · fraîcheur · relu humainement.</div><table class="qtable"><thead><tr><th>Pack</th><th>Type</th><th>Jury</th><th>Sources · div.</th><th>Déprécié</th><th>Versions</th><th>Fraîcheur</th><th>Relu</th></tr></thead><tbody>'+rows+'</tbody></table>';
   app.querySelectorAll('.qtable tbody tr').forEach(tr=>tr.onclick=()=>open(tr.dataset.s));
 }
+const OLD_BLOCK_LABELS={decision:'Décision',salience:"L'essentiel (salience)",conceptId:'Exemples ancrés',"pitfalls-fix":'Pièges échec→correctif',related:'Aller plus loin',authority:'Autorité sources',freshness:'Fraîcheur'};
+function renderOld(){
+  state.slug=null;
+  const rows=PACKS.map(p=>({p,s:window.STALENESS.packStaleness(p,window.STAGE_VERSIONS)})).filter(x=>!x.s.current).sort((a,b)=>b.s.priority-a.s.priority);
+  const lbl=k=>OLD_BLOCK_LABELS[k]||k;
+  const items=rows.map(({p,s})=>{
+    const miss=s.missingBlocks.map(k=>'<span class="miss">✗ '+esc(lbl(k))+'</span>').join(' ');
+    const pres=s.presentBlocks.map(k=>'<span class="pres">✓ '+esc(lbl(k))+'</span>').join(' ');
+    const ver=s.versionLag.length?'<div class="oldver">prompts en retard : '+s.versionLag.map(l=>esc(l.stage)+' '+(l.has?esc(l.has):'∅')+'→'+esc(l.want)).join(' · ')+'</div>':'';
+    return '<div class="oldrow" data-s="'+esc(p.slug)+'"><div class="oldhd"><b>'+esc(p.title)+'</b> <span class="pill">'+s.priority+' à combler</span></div><div class="oldblocks">'+miss+'</div>'+ver+'<div class="oldblocks">'+pres+'</div></div>';
+  }).join('');
+  app.innerHTML='<h2 style="margin-bottom:6px">Anciennes générations</h2><div class="viewintro">'+rows.length+' pack(s) sur '+PACKS.length+' générés avant les enrichissements fiche v2, triés par nombre de blocs manquants. Régénère-les pour activer décision, exemples ancrés, salience, etc. (via <code>scripts/regen-pack.mjs &lt;slug&gt;</code> ou le bot).</div>'+(rows.length?items:'<div class="empty">🎉 Tous les packs sont à jour.</div>');
+  app.querySelectorAll('.oldrow').forEach(el=>el.onclick=()=>open(el.dataset.s));
+}
 function renderProjects(){
   state.slug=null;
   if(!PROJECTS.length){ app.innerHTML='<div class="empty"><b>Aucun projet.</b> Ajoute <code>projects/&lt;slug&gt;.json</code> puis <code>node bundle.mjs</code>.</div>'; return; }
@@ -416,6 +433,7 @@ document.getElementById('home').onclick=renderHome;
 document.getElementById('projBtn').onclick=renderProjects;
 document.getElementById('graphBtn').onclick=renderGraph;
 document.getElementById('qualBtn').onclick=renderQuality;
+document.getElementById('oldBtn').onclick=renderOld;
 renderHome();
 </script>
 </body>
