@@ -62,6 +62,8 @@
   .depnote{font-size:.78rem;color:#b91c1c;margin-top:3px}
   .srcstatus{font-size:.62rem;font-weight:800;text-transform:uppercase;border-radius:999px;padding:2px 7px;margin-left:6px}
   .srcstatus.current{color:#047857;background:#d1fae5}.srcstatus.superseded,.srcstatus.deprecated{color:#b45309;background:#fef3c7}
+  .auth-badge{font-size:.68rem;padding:1px 6px;border-radius:8px;font-weight:600;vertical-align:middle}.auth-high{background:#dcfce7;color:#166534}.auth-mid{background:#dbeafe;color:#1e40af}.auth-low{background:#f3f4f6;color:#6b7280}
+  .src-pop{position:relative;cursor:help}.src-pop:hover::after,.src-pop:focus::after{content:attr(data-url);position:absolute;left:0;top:130%;z-index:10;background:#111827;color:#fff;font-size:.72rem;padding:4px 8px;border-radius:5px;white-space:nowrap;max-width:60vw;overflow:hidden;text-overflow:ellipsis}
   .vchip{display:inline-block;font-size:.7rem;font-weight:700;padding:1px 8px;border-radius:999px;margin-left:6px;vertical-align:middle;border:1px solid;white-space:nowrap}
   .vchip.intro{color:#3730a3;background:#e0e7ff;border-color:#c7d2fe}.vchip.cur{color:#047857;background:#d1fae5;border-color:#a7f3d0}
   .vchip.f-direct{color:#047857;background:#ecfdf5;border-color:#a7f3d0}.vchip.f-synth{color:#3730a3;background:#e0e7ff;border-color:#c7d2fe}
@@ -109,6 +111,10 @@
   .rex .rexl{margin:4px 0;color:var(--ink-2);font-size:.9rem}.rex .rexl b{color:var(--ink)}
   .rex .rexr{font-size:.88rem;color:var(--green);margin-top:3px}
   .rex.abandonne .rexr{color:var(--red)}.rex.encours .rexr{color:#b45309}
+  .essentiel{list-style:none;padding-left:0}.essentiel li{border-left:3px solid var(--acc,#3730a3);padding:4px 0 4px 10px;margin-bottom:6px}.ess-q{color:var(--ink-3);font-style:italic}
+  details.concept{border:1px solid #e5e7eb;border-radius:6px;padding:6px 10px;margin-bottom:6px}details.concept summary{cursor:pointer}details.concept .concept-def{margin-top:6px;color:var(--ink-2,#374151)}
+  .pf-fail{color:#b45309}.pf-fix{color:#047857}
+  .related{display:flex;flex-direction:column;gap:8px}.rel-grp{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.rel-rel{font-size:.72rem;color:var(--ink-3);min-width:110px}.rel-card{background:#eef2ff;color:#3730a3;padding:3px 10px;border-radius:12px;cursor:pointer;font-size:.82rem;text-decoration:none}.rel-card:hover{background:#e0e7ff}
 </style>
 </head>
 <body>
@@ -119,6 +125,7 @@
 <script src="packs.bundle.js"></script>
 <script src="projects.bundle.js"></script>
 <script src="srs.bundle.js"></script>
+<script src="pack-view.bundle.js"></script>
 <script>
 const PACKS = (window.LEARNPACKS || []);
 const PROJECTS = (window.LEARNPROJECTS || []);
@@ -221,6 +228,7 @@ function renderPack(){
     +'<button data-t="src" class="'+(state.tab==='src'?'active':'')+'">🔗 Sources</button></div><div id="tb">'+body+'</div>';
   document.getElementById('bk').onclick=renderHome;
   app.querySelectorAll('.pre-req .prereq-link').forEach(a=>a.onclick=()=>open(a.dataset.s));
+  app.querySelectorAll('.related .rel-card').forEach(a=>a.onclick=()=>open(a.dataset.s));
   app.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{state.tab=b.dataset.t;state.card=0;state.flip=false;renderPack();});
   if(state.tab==='doc') initMermaid();
   if(state.tab==='quiz') wireQuiz(p);
@@ -228,9 +236,11 @@ function renderPack(){
 }
 
 function renderDoc(p){
-  const pv=p.provenance||{}; const fr=pv.lastFreshnessCheck||pv.reviewedAt||pv.generatedAt;
+  const pv=p.provenance||{};
+  const fl=window.PACKVIEW.freshnessLine(p);
+  const fr=(fl&&fl.checkedAt)||pv.reviewedAt||pv.generatedAt;
   let h='';
-  if(pv.stale) h+='<div class="stale">⚠ Sources à re-vérifier'+((pv.stale.driftedClaims||[]).length?' — citations dérivées : '+pv.stale.driftedClaims.join(', '):'')+((pv.stale.unreachableSources||[]).length?' · injoignables : '+pv.stale.unreachableSources.join(', '):'')+'</div>';
+  if(fl&&fl.status!=='fresh') h+='<div class="stale">⚠ Fraîcheur : '+(fl.status==='unreachable'?fl.unreachable+' source(s) injoignable(s)':fl.drift+' citation(s) dérivée(s)')+' — à re-vérifier</div>';
   const rc=pv.regenCheck; const regenTxt=rc?(rc.verdict==='a-regenerer'?' · <span style="color:#b45309">⚠ '+(rc.changed||0)+' source(s) évoluée(s) → régénérer</span>':rc.verdict==='inchange'?' · sources inchangées depuis génération':rc.verdict==='baseline'?' · empreintes sources établies':''):'';
   h+='<div class="freshness">Vérifié au '+esc(fr||'?')+(pv.humanReviewed?' · relu humainement':'')+(pv.judge?' · jury '+esc(pv.judge.score)+'/100':'')+regenTxt+'</div>';
   if(p.technology){ const va=pv.versionAudit||null, lagWarn=va&&va.lag&&va.lag!=='à jour';
@@ -247,10 +257,12 @@ function renderDoc(p){
   h+='<div class="doc">';
   h+='<h3>Synthèse</h3>'+fmt(p.summary);
   h+='<h3>Le principe</h3>'+fmt(p.principle);
-  if((p.concepts||[]).length){ h+='<h3>Concepts clés</h3><ul>'+p.concepts.map(c=>'<li><strong>'+esc(c.label)+'</strong>'+(c.definition?' — '+esc(c.definition):'')+((c.prerequisites||[]).length?' <em>(après : '+c.prerequisites.map(esc).join(', ')+')</em>':'')+'</li>').join('')+'</ul>'; }
+  const ess=window.PACKVIEW.essentiel(p);
+  if(ess.length){ h+='<h3>L\'essentiel</h3><ul class="essentiel">'+ess.map(c=>'<li><strong>'+esc(c.statement)+'</strong> <span class="ess-q">« '+esc(c.quote)+' »</span></li>').join('')+'</ul>'; }
+  if((p.concepts||[]).length){ h+='<h3>Concepts clés</h3>'+p.concepts.map(c=>'<details class="concept"><summary><strong>'+esc(c.label)+'</strong>'+((c.prerequisites||[]).length?' <em>(après : '+c.prerequisites.map(esc).join(', ')+')</em>':'')+'</summary>'+(c.definition?'<div class="concept-def">'+esc(c.definition)+'</div>':'')+'</details>').join(''); }
   if(p.diagram&&p.diagram.code){ h+='<h3>Diagramme</h3><div class="mermaid">'+esc(p.diagram.code)+'</div>'+(p.diagram.caption?'<p><em>'+esc(p.diagram.caption)+'</em></p>':''); }
   if((p.examples||[]).length){ h+='<h3>Exemples concrets</h3>'+p.examples.map(e=>'<p><strong>'+esc(e.title)+'</strong></p>'+fmt(e.body)).join(''); }
-  if((p.pitfalls||[]).length){ h+='<h3>Subtilités & pièges</h3><ul>'+p.pitfalls.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>'; }
+  { const pf=window.PACKVIEW.normalizePitfalls(p); if(pf.length){ h+='<h3>Subtilités & pièges</h3><ul>'+pf.map(x=>'<li>'+(x.fix?'<span class="pf-fail">'+esc(x.failure)+'</span> → <span class="pf-fix">'+esc(x.fix)+'</span>':esc(x.failure))+'</li>').join('')+'</ul>'; } }
   if((p.checklist||[]).length){ h+='<h3>Checklist</h3><ul>'+p.checklist.map(x=>'<li>☐ '+esc(x)+'</li>').join('')+'</ul>'; }
   if((p.claims||[]).length){ const byId=Object.fromEntries((p.sources||[]).map(s=>[s.id,s]));
     const vstatus=(pv.versionAudit&&pv.versionAudit.claims)?Object.fromEntries(pv.versionAudit.claims.map(a=>[a.id,a.status])):{};
@@ -266,6 +278,8 @@ function renderDoc(p){
     ['junior','intermediaire','senior'].forEach(lv=>{ const items=p.qna.filter(x=>x.level===lv); if(!items.length) return;
       h+='<details class="qna-grp" open><summary><span class="lvl '+lv+'">'+(lv==='intermediaire'?'Intermédiaire':lv[0].toUpperCase()+lv.slice(1))+'</span> &nbsp;'+items.length+' question(s)</summary>'
         +items.map(x=>'<div class="qna-q">'+esc(x.q)+'</div><div class="qna-a">'+esc(x.a)+'</div>').join('')+'</details>'; }); }
+  const rg=window.PACKVIEW.relatedGroups(p);
+  if(rg.length){ h+='<h3>Aller plus loin</h3><div class="related">'+rg.map(g=>'<div class="rel-grp"><span class="rel-rel">'+esc(g.relation)+'</span>'+g.items.map(it=>{const tp=PACKS.find(x=>x.slug===it.slug); return '<a class="rel-card" data-s="'+esc(it.slug)+'">'+esc(tp?tp.title:it.slug)+'</a>';}).join('')+'</div>').join('')+'</div>'; }
   return h+'</div>';
 }
 let mermaidTried=false;
@@ -338,8 +352,10 @@ function wireSrs(p){
 
 function renderSrc(p){
   return (p.sources||[]).map(s=>{ const st=s.status&&s.status!=='current'?'<span class="srcstatus '+s.status+'">'+esc(s.status)+'</span>':(s.status==='current'?'<span class="srcstatus current">à jour</span>':''); const meta=[s.publisher,s.coversVersion,s.publishedAt].filter(Boolean).map(esc).join(' · ');
-    return '<div class="src"><span class="ty">'+esc(s.type)+'</span><div>'+srcLink(s)+st+(meta?'<div style="font-size:.78rem;color:var(--ink-3)">'+meta+'</div>':'')+'</div></div>';}).join('')
-    + (p.provenance?'<p style="font-size:.78rem;color:var(--ink-3);margin-top:14px">Généré par '+esc(p.provenance.generator)+' · relu : '+(p.provenance.humanReviewed?'oui':'non')+(p.provenance.judge?' · juge '+esc(p.provenance.judge.score)+'/100':'')+(p.provenance.lastFreshnessCheck?' · fraîcheur vérifiée le '+esc(p.provenance.lastFreshnessCheck):'')+'</p>':'');
+    const ab=window.PACKVIEW.authorityBadge(s); const abadge=ab?'<span class="auth-badge auth-'+ab.tier+'">'+esc(ab.label)+'</span>':'';
+    const pop=/^https?:\/\//.test(s.url||'')?'<span class="src-pop" tabindex="0" data-url="'+esc(s.url)+'">🔗</span>':'';
+    return '<div class="src"><span class="ty">'+esc(s.type)+'</span><div>'+srcLink(s)+' '+abadge+' '+pop+st+(meta?'<div style="font-size:.78rem;color:var(--ink-3)">'+meta+'</div>':'')+'</div></div>';}).join('')
+    + (p.provenance?'<p style="font-size:.78rem;color:var(--ink-3);margin-top:14px">Généré par '+esc(p.provenance.generator)+' · relu : '+(p.provenance.humanReviewed?'oui':'non')+(p.provenance.judge?' · juge '+esc(p.provenance.judge.score)+'/100':'')+'</p>':'');
 }
 
 function safeId(s){ return 'n_'+String(s).replace(/[^a-z0-9]/gi,'_'); }
@@ -347,7 +363,8 @@ function renderGraph(){
   state.slug=null;
   const nodes=PACKS.map(p=>safeId(p.slug)+'["'+String(p.title).replace(/"/g,"'")+'"]');
   const edges=[]; PACKS.forEach(p=>(p.prerequisites||[]).forEach(pr=>{ if(PACKS.find(x=>x.slug===pr)) edges.push(safeId(pr)+' --> '+safeId(p.slug)); }));
-  const mer='graph LR\n'+nodes.join('\n')+(edges.length?'\n'+edges.join('\n'):'');
+  const relEdges=[]; PACKS.forEach(p=>window.PACKVIEW.relatedGroups(p).forEach(g=>{ if(g.relation==='concept commun') g.items.forEach(it=>{ if(PACKS.find(x=>x.slug===it.slug)&&p.slug<it.slug) relEdges.push(safeId(p.slug)+' -.-> '+safeId(it.slug)); }); }));
+  const mer='graph LR\n'+nodes.join('\n')+(edges.length?'\n'+edges.join('\n'):'')+(relEdges.length?'\n'+relEdges.join('\n'):'');
   const list=PACKS.map(p=>'<li><a class="prereq-link" data-s="'+p.slug+'">'+esc(p.title)+'</a>'+((p.prerequisites||[]).length?' <span style="color:var(--ink-3)">← requiert '+p.prerequisites.map(esc).join(', ')+'</span>':'')+'</li>').join('');
   app.innerHTML='<h2 style="margin-bottom:6px">Parcours d’apprentissage</h2><div class="viewintro">Les flèches vont du prérequis vers le pack qui en dépend ('+edges.length+' lien(s) entre '+PACKS.length+' packs).</div><div class="mermaid">'+esc(mer)+'</div><h3 style="font-size:1rem;margin:18px 0 6px">Packs &amp; prérequis</h3><ul>'+list+'</ul>';
   mermaidTried=false; initMermaid();
