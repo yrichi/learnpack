@@ -78,6 +78,7 @@
   .toolbar input.q{flex:1;min-width:200px}
   .toolbar .btn{cursor:pointer}
   .rd{font-size:.64rem;font-weight:800;color:#047857;background:#d1fae5;border:1px solid #bbf7d0;border-radius:999px;padding:3px 8px}
+  .oldtag{font-size:.64rem;font-weight:800;color:#991b1b;background:#fee2e2;border:1px solid #fecaca;border-radius:999px;padding:3px 8px}
   .qtable{width:100%;border-collapse:collapse;font-size:.85rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)}
   .qtable th,.qtable td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--border);vertical-align:top}
   .qtable th{background:var(--surface-2);font-weight:700;color:var(--ink-2);font-size:.7rem;text-transform:uppercase;letter-spacing:.03em}
@@ -136,7 +137,7 @@ const PACKS = (window.LEARNPACKS || []);
 const PROJECTS = (window.LEARNPROJECTS || []);
 const app = document.getElementById('app');
 const SRSKEY = s => 'lp_srs_' + s;
-let state = { slug:null, tab:'doc', answers:{}, card:0, flip:false, dueOnly:true, qlevel:'all', query:'', fkind:'all', flevel:'all', ftag:'all' };
+let state = { slug:null, tab:'doc', answers:{}, card:0, flip:false, dueOnly:true, qlevel:'all', query:'', fkind:'all', flevel:'all', ftag:'all', fgen:'all' };
 
 // --- Progression (vu/lu + meilleur score quiz), export/import ---
 const PKEY='lp_progress';
@@ -194,16 +195,18 @@ function renderHome(){
   const searchText=p=>[p.title,p.tagline,(p.tags||[]).join(' '),(p.concepts||[]).map(c=>c.label).join(' '),(p.claims||[]).map(c=>c.statement).join(' '),(p.qna||[]).map(x=>x.q+' '+x.a).join(' ')].join(' ').toLowerCase();
   const kinds=[...new Set(PACKS.map(p=>p.kind))].sort(), levels=[...new Set(PACKS.map(p=>p.level))].sort(), tags=[...new Set(PACKS.flatMap(p=>p.tags||[]))].sort();
   const q=(state.query||'').trim().toLowerCase();
-  const shown=PACKS.filter(p=>(state.fkind==='all'||p.kind===state.fkind)&&(state.flevel==='all'||p.level===state.flevel)&&(state.ftag==='all'||(p.tags||[]).includes(state.ftag))&&(!q||searchText(p).includes(q)));
+  const isOld=p=>!window.STALENESS.packStaleness(p,window.STAGE_VERSIONS).current;
+  const shown=PACKS.filter(p=>(state.fkind==='all'||p.kind===state.fkind)&&(state.flevel==='all'||p.level===state.flevel)&&(state.ftag==='all'||(p.tags||[]).includes(state.ftag))&&(state.fgen==='all'||(isOld(p)?state.fgen==='old':state.fgen==='current'))&&(!q||searchText(p).includes(q)));
   const opt=(v,sel)=>'<option value="'+esc(v)+'"'+(sel===v?' selected':'')+'>'+esc(v)+'</option>';
   const readN=PACKS.filter(p=>(P[p.slug]||{}).read).length;
   const toolbar='<div class="toolbar"><input class="q" id="q" placeholder="Rechercher… (titre, concept, affirmation)" value="'+esc(state.query||'')+'">'
     +'<select id="fkind"><option value="all">Tout type</option>'+kinds.map(k=>opt(k,state.fkind)).join('')+'</select>'
     +'<select id="flevel"><option value="all">Tout niveau</option>'+levels.map(k=>opt(k,state.flevel)).join('')+'</select>'
     +'<select id="ftag"><option value="all">Tout tag</option>'+tags.map(k=>opt(k,state.ftag)).join('')+'</select>'
+    +'<select id="fgen"><option value="all">Toute génération</option><option value="current"'+(state.fgen==='current'?' selected':'')+'>Actuels</option><option value="old"'+(state.fgen==='old'?' selected':'')+'>Anciens</option></select>'
     +'<button class="btn" id="exp">⬇ Export</button><button class="btn" id="impb">⬆ Import</button><input type="file" id="impf" accept="application/json" style="display:none"></div>';
   const cards=shown.map(p=>{ const due=dueCount(p), pr=P[p.slug]||{};
-    return '<div class="card" data-s="'+p.slug+'"><span class="k">'+esc(p.kind)+' · '+esc(p.level)+'</span>'+(pr.read?' <span class="rd">✓ lu</span>':'')+'<h3>'+esc(p.title)+'</h3>'
+    return '<div class="card" data-s="'+p.slug+'"><span class="k">'+esc(p.kind)+' · '+esc(p.level)+'</span>'+(pr.read?' <span class="rd">✓ lu</span>':'')+(isOld(p)?' <span class="oldtag">ancien</span>':'')+'<h3>'+esc(p.title)+'</h3>'
       +'<div class="tag">'+esc(p.tagline)+'</div><div class="meta">'
       +'<span class="pill">'+(p.claims||[]).length+' affirmations</span><span class="pill">'+(p.quiz||[]).length+' QCM</span>'
       +(pr.quizBest?'<span class="pill ok">quiz '+pr.quizBest.pct+'%</span>':'')
@@ -214,6 +217,7 @@ function renderHome(){
   document.getElementById('fkind').onchange=e=>{state.fkind=e.target.value;renderHome();};
   document.getElementById('flevel').onchange=e=>{state.flevel=e.target.value;renderHome();};
   document.getElementById('ftag').onchange=e=>{state.ftag=e.target.value;renderHome();};
+  document.getElementById('fgen').onchange=e=>{state.fgen=e.target.value;renderHome();};
   document.getElementById('exp').onclick=exportProgress;
   document.getElementById('impb').onclick=()=>document.getElementById('impf').click();
   document.getElementById('impf').onchange=e=>{ if(e.target.files[0]) importProgress(e.target.files[0]); };
