@@ -113,8 +113,10 @@
   .rex.abandonne .rexr{color:var(--red)}.rex.encours .rexr{color:#b45309}
   .essentiel{list-style:none;padding-left:0}.essentiel li{border-left:3px solid var(--acc,#3730a3);padding:4px 0 4px 10px;margin-bottom:6px}.ess-q{color:var(--ink-3);font-style:italic}
   details.concept{border:1px solid #e5e7eb;border-radius:6px;padding:6px 10px;margin-bottom:6px}details.concept summary{cursor:pointer}details.concept .concept-def{margin-top:6px;color:var(--ink-2,#374151)}
+  .example{margin-bottom:12px}.ex-concept{font-size:.74rem;color:var(--ink-3);margin-top:4px}
   .pf-fail{color:#b45309}.pf-fix{color:#047857}
   .related{display:flex;flex-direction:column;gap:8px}.rel-grp{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.rel-rel{font-size:.72rem;color:var(--ink-3);min-width:110px}.rel-card{background:#eef2ff;color:#3730a3;padding:3px 10px;border-radius:12px;cursor:pointer;font-size:.82rem;text-decoration:none}.rel-card:hover{background:#e0e7ff}
+  .decision{border:1px solid #fcd34d;background:#fffbeb;border-radius:8px;padding:8px 12px;margin:12px 0}.decision h3{margin-top:4px}.cadre-tag{font-size:.68rem;font-weight:600;background:#fde68a;color:#92400e;padding:1px 7px;border-radius:8px;vertical-align:middle}.dec-sub{margin-bottom:6px}
 </style>
 </head>
 <body>
@@ -257,11 +259,15 @@ function renderDoc(p){
   h+='<div class="doc">';
   h+='<h3>Synthèse</h3>'+fmt(p.summary);
   h+='<h3>Le principe</h3>'+fmt(p.principle);
+  if(p.decision){ const d=p.decision; const sub=(t,a)=>((a||[]).length?'<div class="dec-sub"><b>'+t+'</b><ul>'+a.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>':'');
+    h+='<div class="decision"><h3>Décision <span class="cadre-tag">cadre · relu, non sourcé</span></h3>'+sub('Quand l\'utiliser',d.whenToUse)+sub('Quand l\'éviter',d.whenToAvoid)+sub('Alternatives',d.alternatives)+'</div>'; }
   const ess=window.PACKVIEW.essentiel(p);
   if(ess.length){ h+='<h3>L\'essentiel</h3><ul class="essentiel">'+ess.map(c=>'<li><strong>'+esc(c.statement)+'</strong> <span class="ess-q">« '+esc(c.quote)+' »</span></li>').join('')+'</ul>'; }
   if((p.concepts||[]).length){ h+='<h3>Concepts clés</h3>'+p.concepts.map(c=>'<details class="concept"><summary><strong>'+esc(c.label)+'</strong>'+((c.prerequisites||[]).length?' <em>(après : '+c.prerequisites.map(esc).join(', ')+')</em>':'')+'</summary>'+(c.definition?'<div class="concept-def">'+esc(c.definition)+'</div>':'')+'</details>').join(''); }
   if(p.diagram&&p.diagram.code){ h+='<h3>Diagramme</h3><div class="mermaid">'+esc(p.diagram.code)+'</div>'+(p.diagram.caption?'<p><em>'+esc(p.diagram.caption)+'</em></p>':''); }
-  if((p.examples||[]).length){ h+='<h3>Exemples concrets</h3>'+p.examples.map(e=>'<p><strong>'+esc(e.title)+'</strong></p>'+fmt(e.body)).join(''); }
+  if((p.examples||[]).length){ const clabel=(id)=>((p.concepts||[]).find(c=>c.id===id)||{}).label;
+    h+='<h3>Exemples concrets</h3>'+p.examples.map(e=>{const lbl=e.conceptId?clabel(e.conceptId):null;
+      return '<div class="example"><p><strong>'+esc(e.title)+'</strong></p>'+fmt(e.body)+(e.code?'<pre><code>'+esc(e.code)+'</code></pre>':'')+(lbl?'<div class="ex-concept">Illustre : '+esc(lbl)+'</div>':'')+'</div>';}).join(''); }
   { const pf=window.PACKVIEW.normalizePitfalls(p); if(pf.length){ h+='<h3>Subtilités & pièges</h3><ul>'+pf.map(x=>'<li>'+(x.fix?'<span class="pf-fail">'+esc(x.failure)+'</span> → <span class="pf-fix">'+esc(x.fix)+'</span>':esc(x.failure))+'</li>').join('')+'</ul>'; } }
   if((p.checklist||[]).length){ h+='<h3>Checklist</h3><ul>'+p.checklist.map(x=>'<li>☐ '+esc(x)+'</li>').join('')+'</ul>'; }
   if((p.claims||[]).length){ const byId=Object.fromEntries((p.sources||[]).map(s=>[s.id,s]));
