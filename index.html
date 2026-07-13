@@ -247,11 +247,11 @@ function renderPack(){
 function renderDoc(p){
   const pv=p.provenance||{};
   const fl=window.PACKVIEW.freshnessLine(p);
-  const fr=(fl&&fl.checkedAt)||pv.reviewedAt||pv.generatedAt;
+  const fr=(fl&&fl.checkedAt)||pv.generatedAt;
   let h='';
   if(fl&&fl.status!=='fresh') h+='<div class="stale">⚠ Fraîcheur : '+(fl.status==='unreachable'?fl.unreachable+' source(s) injoignable(s)':fl.drift+' citation(s) dérivée(s)')+' — à re-vérifier</div>';
   const rc=pv.regenCheck; const regenTxt=rc?(rc.verdict==='a-regenerer'?' · <span style="color:#b45309">⚠ '+(rc.changed||0)+' source(s) évoluée(s) → régénérer</span>':rc.verdict==='inchange'?' · sources inchangées depuis génération':rc.verdict==='baseline'?' · empreintes sources établies':''):'';
-  h+='<div class="freshness">Vérifié au '+esc(fr||'?')+(pv.humanReviewed?' · relu humainement':'')+(pv.judge?' · jury '+esc(pv.judge.score)+'/100':'')+regenTxt+'</div>';
+  h+='<div class="freshness">Vérifié au '+esc(fr||'?')+(pv.judge?' · jury '+esc(pv.judge.score)+'/100':'')+regenTxt+'</div>';
   if(p.technology){ const va=pv.versionAudit||null, lagWarn=va&&va.lag&&va.lag!=='à jour';
     h+='<div class="verbanner"><b>'+esc(p.technology.name)+'</b> — ce pack décrit <b>v'+esc(p.technology.currentVersion)+'</b>'
       +(va&&va.latestKnown?' · dernière connue <b>v'+esc(va.latestKnown)+'</b>':'')
@@ -368,7 +368,7 @@ function renderSrc(p){
     const ab=window.PACKVIEW.authorityBadge(s); const abadge=ab?'<span class="auth-badge auth-'+ab.tier+'">'+esc(ab.label)+'</span>':'';
     const pop=/^https?:\/\//.test(s.url||'')?'<span class="src-pop" tabindex="0" data-url="'+esc(s.url)+'">🔗</span>':'';
     return '<div class="src"><span class="ty">'+esc(s.type)+'</span><div>'+srcLink(s)+' '+abadge+' '+pop+st+(meta?'<div style="font-size:.78rem;color:var(--ink-3)">'+meta+'</div>':'')+'</div></div>';}).join('')
-    + (p.provenance?'<p style="font-size:.78rem;color:var(--ink-3);margin-top:14px">Généré par '+esc(p.provenance.generator)+' · relu : '+(p.provenance.humanReviewed?'oui':'non')+(p.provenance.judge?' · juge '+esc(p.provenance.judge.score)+'/100':'')+'</p>':'');
+    + (p.provenance?'<p style="font-size:.78rem;color:var(--ink-3);margin-top:14px">Généré par '+esc(p.provenance.generator)+(p.provenance.judge?' · juge '+esc(p.provenance.judge.score)+'/100':'')+'</p>':'');
 }
 
 function safeId(s){ return 'n_'+String(s).replace(/[^a-z0-9]/gi,'_'); }
@@ -391,8 +391,8 @@ function renderQuality(){
     const frTxt=fr?(((fr.drift||fr.unreachable)?'<span class="warn">dérive '+(fr.drift||0)+'</span>':'<span class="good">ok</span>')+' <small>('+(fr.checkedAt||'?')+')</small>'):'<span style="color:var(--ink-3)">non vérifié</span>';
     const va=pv.versionAudit, tech=p.technology;
     const verTxt=tech?(va?('v'+esc(tech.currentVersion)+(va.latestKnown&&va.latestKnown!==tech.currentVersion?'→v'+esc(va.latestKnown):'')+' '+((va.removed||va.deprecated)?'<span class="warn">'+[va.deprecated?va.deprecated+' dépr.':'',va.removed?va.removed+' retir.':''].filter(Boolean).join(' · ')+'</span>':'<span class="good">'+esc(va.lag||'à jour')+'</span>')):'v'+esc(tech.currentVersion)+' <small>(non audité)</small>'):'<span style="color:var(--ink-3)">—</span>';
-    return '<tr data-s="'+p.slug+'"><td><b>'+esc(p.title)+'</b></td><td>'+esc(p.kind)+'</td><td>'+(pv.judge?'<span class="'+(pv.judge.score>=80?'good':'warn')+'">'+esc(pv.judge.score)+'</span>':'-')+'</td><td>'+(p.sources||[]).length+' · <span class="'+(divPct>60?'warn':'good')+'">'+divPct+'%</span></td><td>'+(dep?'<span class="warn">'+dep+' ⚠</span>':'0')+'</td><td>'+verTxt+'</td><td>'+frTxt+'</td><td>'+(pv.humanReviewed?'✓':'—')+'</td></tr>';}).join('');
-  app.innerHTML='<h2 style="margin-bottom:6px">Tableau de bord qualité</h2><div class="viewintro">Score jury · diversité (part max d’une source dans les claims) · claims dépréciés · <b>versions</b> (pack vs dernière connue + spécificités retirées/dépréciées) · fraîcheur · relu humainement.</div><table class="qtable"><thead><tr><th>Pack</th><th>Type</th><th>Jury</th><th>Sources · div.</th><th>Déprécié</th><th>Versions</th><th>Fraîcheur</th><th>Relu</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    return '<tr data-s="'+p.slug+'"><td><b>'+esc(p.title)+'</b></td><td>'+esc(p.kind)+'</td><td>'+(pv.judge?'<span class="'+(pv.judge.score>=80?'good':'warn')+'">'+esc(pv.judge.score)+'</span>':'-')+'</td><td>'+(p.sources||[]).length+' · <span class="'+(divPct>60?'warn':'good')+'">'+divPct+'%</span></td><td>'+(dep?'<span class="warn">'+dep+' ⚠</span>':'0')+'</td><td>'+verTxt+'</td><td>'+frTxt+'</td></tr>';}).join('');
+  app.innerHTML='<h2 style="margin-bottom:6px">Tableau de bord qualité</h2><div class="viewintro">Score jury · diversité (part max d’une source dans les claims) · claims dépréciés · <b>versions</b> (pack vs dernière connue + spécificités retirées/dépréciées) · fraîcheur.</div><table class="qtable"><thead><tr><th>Pack</th><th>Type</th><th>Jury</th><th>Sources · div.</th><th>Déprécié</th><th>Versions</th><th>Fraîcheur</th></tr></thead><tbody>'+rows+'</tbody></table>';
   app.querySelectorAll('.qtable tbody tr').forEach(tr=>tr.onclick=()=>open(tr.dataset.s));
 }
 const OLD_BLOCK_LABELS={decision:'Décision',salience:"L'essentiel (salience)",conceptId:'Exemples ancrés',"pitfalls-fix":'Pièges échec→correctif',related:'Aller plus loin',authority:'Autorité sources',freshness:'Fraîcheur'};
