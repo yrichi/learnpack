@@ -1,4 +1,4 @@
-window.STAGE_VERSIONS={"draft":"draft/6","claims":"claims/4","quiz":"quiz/4","judge":"judge/2"};
+window.STAGE_VERSIONS={"draft":"draft/7","claims":"claims/4","quiz":"quiz/5","judge":"judge/2"};
 (function(){
 // Oracle DÉCIDABLE de péremption de GÉNÉRATION (pur). Compare la version des prompts (provenance.promptVersions)
 // aux versions courantes injectées + vérifie la présence des blocs fiche v2. Aucun import (émis en IIFE navigateur
