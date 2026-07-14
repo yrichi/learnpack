@@ -31,6 +31,7 @@
   .pill.due{color:#b45309;background:#fef3c7;border-color:#fde68a}
   .crumb{font-size:.82rem;color:var(--ink-3);font-weight:600;margin-bottom:10px}.crumb a{cursor:pointer}
   .thead h2{font-size:1.5rem;font-weight:850}.thead .tag{color:var(--ink-2);margin-top:4px}
+  .profile-badge{display:inline-block;margin-top:6px;padding:2px 10px;border-radius:999px;background:var(--surface-2,rgba(127,127,127,.15));font-size:.85rem}
   .pre-req{font-size:.8rem;color:var(--ink-3);margin-top:6px}
   .tabs{display:flex;gap:18px;margin:18px 0;border-bottom:1px solid var(--border)}
   .tabs button{border:none;background:none;padding:10px 0;font-weight:700;font-size:.92rem;color:var(--ink-3);border-bottom:2px solid transparent}
@@ -230,7 +231,8 @@ function renderPack(){
   let body = state.tab==='doc'?renderDoc(p): state.tab==='quiz'?renderQuiz(p): state.tab==='srs'?renderSrs(p):renderSrc(p);
   const pre=(p.prerequisites||[]).length?'<div class="pre-req">Prérequis : '+p.prerequisites.map(s=>'<a class="prereq-link" data-s="'+esc(s)+'">'+esc(s)+'</a>').join(', ')+'</div>':'';
   app.innerHTML='<div class="crumb"><a id="bk">Bibliothèque</a> › '+esc(p.kind)+'</div>'
-    +'<div class="thead"><h2>'+esc(p.title)+'</h2><div class="tag">'+esc(p.tagline)+'</div>'+pre+'</div>'
+    +'<div class="thead"><h2>'+esc(p.title)+'</h2><div class="tag">'+esc(p.tagline)+'</div>'
+    +((p.profile&&p.profile!=='engineer')?'<div class="profile-badge">'+esc({learner:'🎓 Veille pédagogique',interview:'🎤 Entretien'}[p.profile]||p.profile)+'</div>':'')+pre+'</div>'
     +'<div class="tabs"><button data-t="doc" class="'+(state.tab==='doc'?'active':'')+'">📖 Cours</button>'
     +'<button data-t="quiz" class="'+(state.tab==='quiz'?'active':'')+'">📝 Quiz ('+(p.quiz||[]).length+')</button>'
     +'<button data-t="srs" class="'+(state.tab==='srs'?'active':'')+'">🃏 Révision ('+dueCount(p)+')</button>'
