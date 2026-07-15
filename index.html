@@ -273,7 +273,7 @@ function renderDoc(p){
   const ess=window.PACKVIEW.essentiel(p);
   if(ess.length){ h+='<h3>L\'essentiel</h3><ul class="essentiel">'+ess.map(c=>{const evs=(c.evidence||(c.quote!=null?[{sourceId:c.sourceId,quote:c.quote}]:[]));return '<li><strong>'+esc(c.statement)+'</strong> <span class="ess-q">« '+esc((evs[0]||{}).quote||'')+' »</span></li>';}).join('')+'</ul>'; }
   if((p.concepts||[]).length){ h+='<h3>Concepts clés</h3>'+p.concepts.map(c=>'<details class="concept"><summary><strong>'+esc(c.label)+'</strong>'+((c.prerequisites||[]).length?' <em>(après : '+c.prerequisites.map(esc).join(', ')+')</em>':'')+'</summary>'+(c.definition?'<div class="concept-def">'+esc(c.definition)+'</div>':'')+'</details>').join(''); }
-  if(p.diagram&&p.diagram.code){ h+='<h3>Diagramme</h3><div class="mermaid">'+esc(p.diagram.code)+'</div>'+(p.diagram.caption?'<p><em>'+esc(p.diagram.caption)+'</em></p>':''); }
+  if(p.diagram&&p.diagram.code){ h+='<h3>Diagramme</h3><div class="mermaid">'+esc(p.diagram.code)+'</div>'+(p.diagram.caption?'<p><em>'+esc(p.diagram.caption)+'</em></p>':'')+(p.diagram.source==='generated'?'<p class="muted" style="font-size:.8em">Diagramme : aide générée.</p>':''); }
   if((p.examples||[]).length){ const clabel=(id)=>((p.concepts||[]).find(c=>c.id===id)||{}).label;
     h+='<h3>Exemples concrets</h3>'+p.examples.map(e=>{const lbl=e.conceptId?clabel(e.conceptId):null;
       return '<div class="example"><p><strong>'+esc(e.title)+'</strong></p>'+fmt(e.body)+(e.code?'<pre><code>'+esc(e.code)+'</code></pre>':'')+(lbl?'<div class="ex-concept">Illustre : '+esc(lbl)+'</div>':'')+'</div>';}).join(''); }
