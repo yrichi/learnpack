@@ -271,7 +271,7 @@ function renderDoc(p){
   if(p.decision){ const d=p.decision; const sub=(t,a)=>((a||[]).length?'<div class="dec-sub"><b>'+t+'</b><ul>'+a.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>':'');
     h+='<div class="decision"><h3>Décision <span class="cadre-tag">cadre · relu, non sourcé</span></h3>'+sub('Quand l\'utiliser',d.whenToUse)+sub('Quand l\'éviter',d.whenToAvoid)+sub('Alternatives',d.alternatives)+'</div>'; }
   const ess=window.PACKVIEW.essentiel(p);
-  if(ess.length){ h+='<h3>L\'essentiel</h3><ul class="essentiel">'+ess.map(c=>'<li><strong>'+esc(c.statement)+'</strong> <span class="ess-q">« '+esc(c.quote)+' »</span></li>').join('')+'</ul>'; }
+  if(ess.length){ h+='<h3>L\'essentiel</h3><ul class="essentiel">'+ess.map(c=>{const evs=(c.evidence||(c.quote!=null?[{sourceId:c.sourceId,quote:c.quote}]:[]));return '<li><strong>'+esc(c.statement)+'</strong> <span class="ess-q">« '+esc((evs[0]||{}).quote||'')+' »</span></li>';}).join('')+'</ul>'; }
   if((p.concepts||[]).length){ h+='<h3>Concepts clés</h3>'+p.concepts.map(c=>'<details class="concept"><summary><strong>'+esc(c.label)+'</strong>'+((c.prerequisites||[]).length?' <em>(après : '+c.prerequisites.map(esc).join(', ')+')</em>':'')+'</summary>'+(c.definition?'<div class="concept-def">'+esc(c.definition)+'</div>':'')+'</details>').join(''); }
   if(p.diagram&&p.diagram.code){ h+='<h3>Diagramme</h3><div class="mermaid">'+esc(p.diagram.code)+'</div>'+(p.diagram.caption?'<p><em>'+esc(p.diagram.caption)+'</em></p>':''); }
   if((p.examples||[]).length){ const clabel=(id)=>((p.concepts||[]).find(c=>c.id===id)||{}).label;
@@ -288,7 +288,7 @@ function renderDoc(p){
       if(lab){let t=lab[1];if(st==='deprecated'&&v.deprecatedIn)t='déprécié v'+v.deprecatedIn;if(st==='removed'&&v.removedIn)t='retiré v'+v.removedIn;out.push('<span class="vchip '+lab[0]+'">'+esc(t)+'</span>');}
       else if(v.removedIn)out.push('<span class="vchip rem">retiré v'+esc(v.removedIn)+'</span>');else if(v.deprecatedIn)out.push('<span class="vchip dep">déprécié v'+esc(v.deprecatedIn)+'</span>');
       return out.join('');};
-    h+='<h3>Affirmations sourcées</h3>'+p.claims.map(c=>{const s=byId[c.sourceId];const dep=c.deprecated===true;return '<div class="claim'+(dep?' depr':'')+'">'+esc(c.statement)+vchips(c)+fbadge(fbyId[c.id])+(dep?' <span class="dep">déprécié</span>':'')+(dep&&c.deprecationNote?'<div class="depnote">⚠ '+esc(c.deprecationNote)+'</div>':'')+((c.versioning&&c.versioning.note)?'<div class="depnote" style="color:#3730a3">↪ '+esc(c.versioning.note)+'</div>':'')+'<div class="q">« '+esc(c.quote)+' »</div><div class="src">— '+(s?srcLink(s):esc(c.sourceId))+'</div></div>';}).join(''); }
+    h+='<h3>Affirmations sourcées</h3>'+p.claims.map(c=>{const dep=c.deprecated===true;const evs=(c.evidence||(c.quote!=null?[{sourceId:c.sourceId,quote:c.quote}]:[]));const evHtml=evs.map(ev=>{const s=byId[ev.sourceId];return '<div class="q">« '+esc(ev.quote)+' »</div><div class="src">— '+(s?srcLink(s):esc(ev.sourceId))+'</div>';}).join('');return '<div class="claim'+(dep?' depr':'')+'">'+esc(c.statement)+vchips(c)+fbadge(fbyId[c.id])+(dep?' <span class="dep">déprécié</span>':'')+(dep&&c.deprecationNote?'<div class="depnote">⚠ '+esc(c.deprecationNote)+'</div>':'')+((c.versioning&&c.versioning.note)?'<div class="depnote" style="color:#3730a3">↪ '+esc(c.versioning.note)+'</div>':'')+evHtml+'</div>';}).join(''); }
   if((p.qna||[]).length){ h+='<h3>Questions / réponses par niveau</h3>';
     ['junior','intermediaire','senior'].forEach(lv=>{ const items=p.qna.filter(x=>x.level===lv); if(!items.length) return;
       h+='<details class="qna-grp" open><summary><span class="lvl '+lv+'">'+(lv==='intermediaire'?'Intermédiaire':lv[0].toUpperCase()+lv.slice(1))+'</span> &nbsp;'+items.length+' question(s)</summary>'
@@ -388,7 +388,7 @@ function renderGraph(){
 function renderQuality(){
   state.slug=null;
   const rows=PACKS.map(p=>{ const pv=p.provenance||{}, cl=p.claims||[];
-    const use={}; cl.forEach(c=>use[c.sourceId]=(use[c.sourceId]||0)+1); const max=cl.length?Math.max(...Object.values(use)):0; const divPct=cl.length?Math.round(max/cl.length*100):0;
+    const use={}; cl.forEach(c=>(c.evidence||(c.quote!=null?[{sourceId:c.sourceId,quote:c.quote}]:[])).forEach(ev=>use[ev.sourceId]=(use[ev.sourceId]||0)+1)); const max=cl.length?Math.max(...Object.values(use)):0; const divPct=cl.length?Math.round(max/cl.length*100):0;
     const dep=cl.filter(c=>c.deprecated).length; const fr=pv.freshness;
     const frTxt=fr?(((fr.drift||fr.unreachable)?'<span class="warn">dérive '+(fr.drift||0)+'</span>':'<span class="good">ok</span>')+' <small>('+(fr.checkedAt||'?')+')</small>'):'<span style="color:var(--ink-3)">non vérifié</span>';
     const va=pv.versionAudit, tech=p.technology;
