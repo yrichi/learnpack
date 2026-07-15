@@ -9,9 +9,8 @@ const V2_BLOCKS = [
   { key: 'salience', has: (p) => (p.claims || []).some((c) => c && c.salience > 0) },
   { key: 'conceptId', has: (p) => (p.examples || []).some((e) => e && e.conceptId) },
   { key: 'pitfalls-fix', has: (p) => (p.pitfalls || []).some((x) => x && typeof x === 'object' && x.failure) },
-  { key: 'related', has: (p) => (p.related || []).length > 0 },
+  { key: 'related', has: (p) => Array.isArray(p.related) },
   { key: 'authority', has: (p) => (p.sources || []).some((s) => s && s.authority) },
-  { key: 'freshness', has: (p) => !!(p.provenance && p.provenance.freshness) },
 ];
 
 function packStaleness(pack, currentVersions) {
