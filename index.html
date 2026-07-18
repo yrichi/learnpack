@@ -121,11 +121,14 @@
   .decision{border:1px solid #fcd34d;background:#fffbeb;border-radius:8px;padding:8px 12px;margin:12px 0}.decision h3{margin-top:4px}.cadre-tag{font-size:.68rem;font-weight:600;background:#fde68a;color:#92400e;padding:1px 7px;border-radius:8px;vertical-align:middle}.dec-sub{margin-bottom:6px}
   .oldrow{border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;margin-bottom:8px;cursor:pointer}.oldrow:hover{background:#f9fafb}.oldhd{margin-bottom:6px}.oldblocks{display:flex;flex-wrap:wrap;gap:5px;margin:3px 0}.oldver{font-size:.76rem;color:#b45309;margin:3px 0}
   .miss{background:#fee2e2;color:#991b1b;font-size:.74rem;padding:1px 7px;border-radius:8px}.pres{background:#dcfce7;color:#166534;font-size:.74rem;padding:1px 7px;border-radius:8px}
+  .xchips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 2px}
+  .xchip{cursor:pointer;border:1px solid var(--border);border-radius:14px;padding:3px 10px;font-size:.85rem;color:var(--ink-2);background:none}
+  .xchip.on{border-color:var(--indigo);color:var(--indigo);font-weight:700}
 </style>
 </head>
 <body>
 <nav class="nav"><div class="nav-in"><div class="logo"><span class="dot"></span> LearnPack</div><span class="sub">bibliothèque d'apprentissage sourcée</span>
-  <div class="right"><a id="projBtn">📁 Projets</a><a id="home">▦ Bibliothèque</a><a id="graphBtn">🕸 Parcours</a><a id="qualBtn">✓ Qualité</a><a id="oldBtn">🕒 Anciennes gén.</a></div></div></nav>
+  <div class="right"><a id="projBtn">📁 Projets</a><a id="home">▦ Bibliothèque</a><a id="graphBtn">🕸 Parcours</a><a id="crossBtn">🔀 Transverse</a><a id="pontBtn">🌉 Pont fiches</a><a id="qualBtn">✓ Qualité</a><a id="oldBtn">🕒 Anciennes gén.</a></div></div></nav>
 <div class="wrap" id="app"></div>
 
 <script src="packs.bundle.js"></script>
@@ -133,12 +136,14 @@
 <script src="srs.bundle.js"></script>
 <script src="pack-view.bundle.js"></script>
 <script src="staleness.bundle.js"></script>
+<script src="lessons-agg.bundle.js"></script>
+<script src="bridge.bundle.js"></script>
 <script>
 const PACKS = (window.LEARNPACKS || []);
 const PROJECTS = (window.LEARNPROJECTS || []);
 const app = document.getElementById('app');
 const SRSKEY = s => 'lp_srs_' + s;
-let state = { slug:null, tab:'doc', answers:{}, card:0, flip:false, dueOnly:true, qlevel:'all', query:'', fkind:'all', flevel:'all', ftag:'all', fgen:'all' };
+let state = { slug:null, tab:'doc', answers:{}, card:0, flip:false, dueOnly:true, qlevel:'all', query:'', fkind:'all', flevel:'all', ftag:'all', fgen:'all', xstatus:'all', xproj:'all' };
 
 // --- Progression (vu/lu + meilleur score quiz), export/import ---
 const PKEY='lp_progress';
@@ -414,7 +419,7 @@ function renderOld(){
 function renderProjects(){
   state.slug=null;
   if(!PROJECTS.length){ app.innerHTML='<div class="empty"><b>Aucun projet.</b> Ajoute <code>projects/&lt;slug&gt;.json</code> puis <code>node bundle.mjs</code>.</div>'; return; }
-  const cards=PROJECTS.map(pr=>'<div class="card" data-p="'+pr.slug+'"><span class="k">projet</span><h3>'+esc(pr.title)+'</h3><div class="tag">'+esc(pr.goal)+'</div><div class="meta">'+((pr.path||[]).length?'<span class="pill">'+pr.path.length+' packs</span>':'')+((pr.lessons||[]).length?'<span class="pill">'+pr.lessons.length+' leçons</span>':'')+((pr.experiments||[]).length?'<span class="pill">'+pr.experiments.length+' expériences</span>':'')+(pr.status?'<span class="pill">'+esc(pr.status)+'</span>':'')+'</div></div>').join('');
+  const cards=PROJECTS.map(pr=>'<div class="card" data-p="'+pr.slug+'"><span class="k">projet</span><h3>'+esc(pr.title)+'</h3><div class="tag">'+esc(pr.goal)+'</div><div class="meta">'+((pr.path||[]).length?'<span class="pill">'+pr.path.length+' packs</span>':'')+((pr.learnings||[]).length?'<span class="pill">'+pr.learnings.length+' axes</span>':'')+((pr.lessons||[]).length?'<span class="pill">'+pr.lessons.length+' leçons</span>':'')+(pr.source==='journal'?'<span class="pill">journal</span>':'')+((pr.experiments||[]).length?'<span class="pill">'+pr.experiments.length+' expériences</span>':'')+(pr.status?'<span class="pill">'+esc(pr.status)+'</span>':'')+'</div></div>').join('');
   app.innerHTML='<div class="hero"><h1>Projets</h1><p>Un projet relie un <b>parcours de packs</b> à ses <b>leçons</b> (décisions / REX). Les packs restent réutilisables entre projets.</p></div><div class="grid">'+cards+'</div>';
   app.querySelectorAll('.card').forEach(el=>el.onclick=()=>openProject(el.dataset.p));
 }
@@ -422,22 +427,98 @@ function openProject(slug){
   const pr=PROJECTS.find(p=>p.slug===slug); if(!pr) return renderProjects();
   const by=Object.fromEntries(PACKS.map(p=>[p.slug,p]));
   const steps=(pr.path||[]).map((st,i)=>'<li>'+(by[st.packSlug]?'<a class="prereq-link" data-s="'+st.packSlug+'">'+esc(by[st.packSlug].title)+'</a>':'<span style="color:var(--ink-3)">'+esc(st.packSlug)+' <em>(à venir)</em></span>')+(st.why?' — <span style="color:var(--ink-3)">'+esc(st.why)+'</span>':'')+'</li>').join('');
+  const learnings=(pr.learnings||[]).map(a=>'<div class="claim"><b>'+esc(a.title)+'</b>'+(a.sourceLevel?' <span class="pill">'+esc(a.sourceLevel)+'</span>':'')+'<div style="margin:4px 0;color:var(--ink-2)">'+fmt(a.body)+'</div>'+((a.concepts||[]).length?'<div class="src" style="margin-top:4px">concepts : '+a.concepts.map(esc).join(', ')+'</div>':'')+'</div>').join('');
   const lessons=(pr.lessons||[]).map(l=>{ const links=(l.packs||[]).map(s=>by[s]?'<a class="prereq-link" data-s="'+s+'">'+esc(by[s].title)+'</a>':'<span style="color:var(--ink-3)">'+esc(s)+'</span>').join(', ');
-    return '<div class="claim"><b>'+esc(l.title)+'</b><div style="margin:4px 0;color:var(--ink-2)">'+esc(l.body)+'</div>'+(l.decision?'<div style="font-size:.83rem;color:var(--green)">→ '+esc(l.decision)+'</div>':'')+(links?'<div class="src" style="margin-top:4px">packs : '+links+'</div>':'')+'</div>'; }).join('');
+    const heur=l.heuristic?'<div style="font-size:.85rem;color:var(--green);margin-top:3px">↳ '+esc(l.heuristic)+'</div>':'';
+    const dec=l.decision?'<div style="font-size:.83rem;color:var(--green)">→ '+esc(l.decision)+'</div>':'';
+    const fr=l.friction?('<div class="src" style="margin-top:4px">'+(l.friction.symptom?'<b>Symptôme —</b> '+esc(l.friction.symptom)+' ':'')+(l.friction.fix?'<b>Fix —</b> '+esc(l.friction.fix):'')+'</div>'):'';
+    const cs=(l.concepts||[]).length?'<div class="src" style="margin-top:3px">concepts : '+l.concepts.map(esc).join(', ')+'</div>':'';
+    const st=l.status?'<span class="pill">'+esc(l.status)+'</span> ':'';
+    return '<div class="claim">'+st+'<b>'+esc(l.title)+'</b><div style="margin:4px 0;color:var(--ink-2)">'+esc(l.body)+'</div>'+heur+dec+fr+cs+(links?'<div class="src" style="margin-top:4px">packs : '+links+'</div>':'')+'</div>'; }).join('');
   const rxcls=s=>({'validé':'valide','valide':'valide','abandonné':'abandonne','abandonne':'abandonne','en-cours':'encours','en cours':'encours'})[String(s||'').toLowerCase()]||'encours';
   const rxfmt=s=>esc(s).replace(/`([^`]+)`/g,'<code>$1</code>');
   const exps=(pr.experiments||[]).map(x=>{ const cls=rxcls(x.status); const links=(x.packs||[]).map(s=>by[s]?'<a class="prereq-link" data-s="'+s+'">'+esc(by[s].title)+'</a>':'<span style="color:var(--ink-3)">'+esc(s)+'</span>').join(', ');
     return '<div class="rex '+cls+'"><div class="rexh"><span class="rxs '+cls+'">'+esc(x.status||'en-cours')+'</span><span class="rext">'+esc(x.title)+'</span>'+(x.date?'<span class="rexd">'+esc(x.date)+'</span>':'')+'</div>'+(x.tested?'<div class="rexl"><b>Testé —</b> '+rxfmt(x.tested)+'</div>':'')+(x.why?'<div class="rexl"><b>Pourquoi —</b> '+rxfmt(x.why)+'</div>':'')+(x.result?'<div class="rexr">→ '+rxfmt(x.result)+'</div>':'')+(links?'<div class="src" style="margin-top:5px">packs : '+links+'</div>':'')+'</div>'; }).join('');
   const ext=pr.externalCurriculum?'<p><a class="doclink" href="'+esc(pr.externalCurriculum)+'">📚 Curriculum complet (révision) →</a></p>':'';
-  app.innerHTML='<div class="crumb"><a id="bkp">Projets</a> › projet</div><div class="thead"><h2>'+esc(pr.title)+'</h2><div class="tag">'+esc(pr.goal)+'</div></div>'
-    +'<div class="doc" style="margin-top:14px">'+fmt(pr.summary)+ext+(steps?'<h3>Parcours d’apprentissage</h3><ol>'+steps+'</ol>':'')+(exps?'<h3>REX — ce qu’on a testé</h3>'+exps:'')+(lessons?'<h3>Leçons &amp; décisions</h3>'+lessons:'')+'</div>';
+  const tagRow=(label,arr)=>(arr&&arr.length)?'<div class="src" style="margin-top:4px">'+label+' : '+arr.map(esc).join(', ')+'</div>':'';
+  const fiche=tagRow('stack',pr.stack)+tagRow('domaines',pr.domains);
+  app.innerHTML='<div class="crumb"><a id="bkp">Projets</a> › projet</div><div class="thead"><h2>'+esc(pr.title)+'</h2><div class="tag">'+esc(pr.goal)+'</div>'+fiche+'</div>'
+    +'<div class="doc" style="margin-top:14px">'+fmt(pr.summary)+ext+(steps?'<h3>Parcours d’apprentissage</h3><ol>'+steps+'</ol>':'')+(exps?'<h3>REX — ce qu’on a testé</h3>'+exps:'')+(learnings?'<h3>Principes distillés</h3>'+learnings:'')+(lessons?'<h3>Leçons &amp; REX</h3>'+lessons:'')+'</div>';
   document.getElementById('bkp').onclick=renderProjects;
   app.querySelectorAll('.prereq-link').forEach(a=>a.onclick=()=>open(a.dataset.s));
+  window.scrollTo(0,0);
+}
+function renderCross(){
+  state.slug=null;
+  const A=window.LESSONSAGG;
+  const xs=state.xstatus||'all', xp=state.xproj||'all';
+  const statuses=A.aggregateByStatus(PROJECTS);
+  const projWithLessons=PROJECTS.filter(p=>(p.lessons||[]).length);
+  const timeline=A.journalTimeline(PROJECTS,{status:xs==='all'?null:xs, projectSlug:xp==='all'?null:xp});
+  const stChip=(label,val,count)=>'<a class="xchip'+(val===xs?' on':'')+'" data-x="'+esc(val)+'">'+esc(label)+(count!=null?' <span class="pill">'+count+'</span>':'')+'</a>';
+  const prChip=(label,val,count)=>'<a class="xchip'+(val===xp?' on':'')+'" data-xp="'+esc(val)+'">'+esc(label)+(count!=null?' <span class="pill">'+count+'</span>':'')+'</a>';
+  const statusChips='<div class="xchips">'+stChip('tous statuts','all')+statuses.map(s=>stChip(s.key,s.key,s.count)).join('')+'</div>';
+  const projChips='<div class="xchips">'+prChip('tous projets','all')+projWithLessons.map(p=>prChip(p.title,p.slug,(p.lessons||[]).length)).join('')+'</div>';
+  const item=l=>{
+    const heur=l.heuristic?'<div style="font-size:.85rem;color:var(--green);margin-top:3px">↳ '+esc(l.heuristic)+'</div>':'';
+    const fr=l.friction?('<div class="src" style="margin-top:4px">'+(l.friction.symptom?'<b>Symptôme —</b> '+esc(l.friction.symptom)+' ':'')+(l.friction.fix?'<b>Fix —</b> '+esc(l.friction.fix):'')+'</div>'):'';
+    const st=A.statusOf(l)?'<span class="pill">'+esc(A.statusOf(l))+'</span> ':'';
+    return '<div class="claim"><div style="display:flex;justify-content:space-between;gap:8px"><b>'+esc(l.title)+'</b><span style="color:var(--ink-3);white-space:nowrap">'+esc(l.date||'')+'</span></div><div class="src" style="margin-top:2px">'+st+'<span class="pill">'+esc(l.projectTitle||l.projectSlug)+'</span></div>'+heur+fr+'</div>';
+  };
+  const timelineHtml=timeline.length?timeline.map(item).join(''):'<div class="empty">Aucune leçon pour ce filtre.</div>';
+  const fr=A.aggregateByFriction(PROJECTS);
+  const frHtml=fr.length?('<div class="xchips">'+fr.map(f=>'<span class="xchip">'+esc(f.key)+' <span class="pill">'+f.count+'</span></span>').join('')+'</div>'):'<div class="src">Aucune friction classée (fixKind) sur le corpus actuel.</div>';
+  const cc=A.aggregateByConcept(PROJECTS);
+  const ccHtml=cc.length?('<div class="xchips">'+cc.map(c=>'<span class="xchip">'+esc(c.key)+' <span class="pill">'+c.count+'</span></span>').join('')+'</div>'):'<div class="src">Concepts peu renseignés sur le corpus actuel — section à densifier au fil des leçons taggées.</div>';
+  const graph=A.buildLessonGraph(PROJECTS);
+  const byId=Object.fromEntries(graph.nodes.map(n=>[n.id,n]));
+  const hubs=A.detectHubs(graph,{minRefs:2});
+  const hubHtml=hubs.length?('<ol>'+hubs.map(h=>'<li><b>'+esc(h.title)+'</b> <span class="pill">'+h.inDegree+' liens</span> <span style="color:var(--ink-3)">'+esc(h.projectSlug||'')+'</span></li>').join('')+'</ol>'):'<div class="src">Aucune leçon référencée ≥2×.</div>';
+  const connected=new Set(); graph.edges.forEach(e=>{connected.add(e.from);connected.add(e.to);});
+  const short=t=>String(t).slice(0,40).replace(/"/g,"'");
+  const mnodes=[...connected].map(id=>safeId(id)+'["'+short((byId[id]||{}).title||id)+'"]');
+  const medges=graph.edges.map(e=>safeId(e.from)+(e.kind==='learning-ref'?' -.-> ':' --> ')+safeId(e.to));
+  const mer='graph LR\n'+mnodes.join('\n')+(medges.length?'\n'+medges.join('\n'):'');
+  const graphHtml=connected.size?('<div class="mermaid">'+esc(mer)+'</div>'):'<div class="src">Aucun lien entre leçons.</div>';
+  app.innerHTML='<div class="hero"><h1>Transverse</h1><p>Toutes les leçons de tous les projets en un flux filtrable — agrégées par statut et friction, avec les récurrences et le graphe de liens.</p></div>'
+    +'<h3>Filtrer</h3>'+statusChips+projChips
+    +'<h3 style="margin-top:16px">Journal transverse <span class="pill">'+timeline.length+'</span></h3>'+timelineHtml
+    +'<h3 style="margin-top:18px">Par friction</h3>'+frHtml
+    +'<h3 style="margin-top:14px">Par concept</h3>'+ccHtml
+    +'<h3 style="margin-top:14px">Récurrences (référencées ≥2×)</h3>'+hubHtml
+    +'<h3 style="margin-top:14px">Graphe de liens <span class="pill">'+graph.edges.length+'</span></h3>'+graphHtml;
+  app.querySelectorAll('[data-x]').forEach(a=>a.onclick=()=>{state.xstatus=a.dataset.x;renderCross();});
+  app.querySelectorAll('[data-xp]').forEach(a=>a.onclick=()=>{state.xproj=a.dataset.xp;renderCross();});
+  mermaidTried=false; initMermaid();
+  window.scrollTo(0,0);
+}
+function renderPont(){
+  state.slug=null;
+  const P=window.PONT;
+  const matches=P.matchAxesToPacks(PROJECTS,PACKS);
+  const gaps=P.detectFicheGaps(PROJECTS,PACKS);
+  const links=P.authoritativeLinks(PROJECTS);
+  const packBy=Object.fromEntries(PACKS.map(p=>[p.slug,p]));
+  const projBy=Object.fromEntries(PROJECTS.map(p=>[p.slug,p]));
+  const projName=s=>esc((projBy[s]||{}).title||s);
+  const packChip=slug=>{const p=packBy[slug];return p?'<a class="xchip on" data-pack="'+esc(slug)+'">'+esc(p.title||slug)+'</a>':'<span class="xchip">'+esc(slug)+' (absent)</span>';};
+  const STUDIO='https://learn-admin.path-of-life.uk';
+  const gapHtml=gaps.length?gaps.map(g=>'<div class="claim"><div style="display:flex;justify-content:space-between;gap:8px"><b>'+esc(g.suggestedSubject)+'</b><span class="pill">'+g.projectSlugs.length+' projet'+(g.projectSlugs.length>1?'s':'')+'</span></div><div class="src" style="margin-top:2px"><span class="pill">'+esc(g.kind)+'</span> '+g.projectSlugs.map(s=>'<span class="pill">'+projName(s)+'</span>').join(' ')+'</div><div style="margin-top:6px"><button class="xchip" data-subj="'+esc(g.suggestedSubject)+'">📋 Copier le sujet</button> <a class="xchip" href="'+STUDIO+'" target="_blank" rel="noopener">→ générer dans le studio ↗</a></div></div>').join(''):'<div class="empty">🎉 Aucun manque : chaque axe a une fiche.</div>';
+  const matchHtml=matches.length?matches.map(m=>'<div class="claim"><div style="display:flex;justify-content:space-between;gap:8px"><b>'+esc(m.label)+'</b><span class="pill">'+esc(m.kind)+'</span></div><div class="src" style="margin-top:2px"><span class="pill">'+projName(m.projectSlug)+'</span></div><div class="src" style="margin-top:4px">'+m.packSlugs.map(packChip).join(' ')+'</div></div>').join(''):'<div class="empty">Aucun lien dérivé.</div>';
+  const authHtml=links.length?('<ul>'+links.map(l=>'<li>'+projName(l.projectSlug)+' → '+packChip(l.packSlug)+(l.why?' <span style="color:var(--ink-3)">— '+esc(l.why)+'</span>':'')+'</li>').join('')+'</ul>'):'<div class="src">Aucun lien manuel (path[]).</div>';
+  app.innerHTML='<div class="hero"><h1>Pont fiches</h1><p>Ce que les projets ont APPRIS relié à ce qu’on peut ENSEIGNER. Liens dérivés (axe → pack), parcours manuels, et les MANQUES : des axes sans fiche, prêts à générer (côté studio).</p></div>'
+    +'<h3>Manques — candidats fiches <span class="pill">'+gaps.length+'</span></h3><div class="viewintro">Chaque axe appris sans fiche couvrante. Copiez le sujet et générez-le dans le studio (le site est en lecture seule).</div>'+gapHtml
+    +'<h3 style="margin-top:18px">Liens dérivés (axe → pack) <span class="pill">'+matches.length+'</span></h3>'+matchHtml
+    +'<h3 style="margin-top:18px">Parcours manuels (path) <span class="pill">'+links.length+'</span></h3>'+authHtml;
+  app.querySelectorAll('[data-pack]').forEach(a=>a.onclick=()=>open(a.dataset.pack));
+  app.querySelectorAll('[data-subj]').forEach(b=>b.onclick=()=>{ try{navigator.clipboard&&navigator.clipboard.writeText(b.dataset.subj);}catch(e){} b.textContent='✓ Copié'; });
   window.scrollTo(0,0);
 }
 document.getElementById('home').onclick=renderHome;
 document.getElementById('projBtn').onclick=renderProjects;
 document.getElementById('graphBtn').onclick=renderGraph;
+document.getElementById('crossBtn').onclick=renderCross;
+document.getElementById('pontBtn').onclick=renderPont;
 document.getElementById('qualBtn').onclick=renderQuality;
 document.getElementById('oldBtn').onclick=renderOld;
 renderHome();
