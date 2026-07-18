@@ -128,7 +128,7 @@
 </head>
 <body>
 <nav class="nav"><div class="nav-in"><div class="logo"><span class="dot"></span> LearnPack</div><span class="sub">bibliothèque d'apprentissage sourcée</span>
-  <div class="right"><a id="projBtn">📁 Projets</a><a id="home">▦ Bibliothèque</a><a id="graphBtn">🕸 Parcours</a><a id="crossBtn">🔀 Transverse</a><a id="pontBtn">🌉 Pont fiches</a><a id="qualBtn">✓ Qualité</a><a id="oldBtn">🕒 Anciennes gén.</a></div></div></nav>
+  <div class="right"><a id="projBtn">📁 Projets</a><a id="home">▦ Bibliothèque</a><a id="graphBtn">🕸 Parcours</a><a id="crossBtn">🔀 Transverse</a><a id="pontBtn">🌉 Pont fiches</a><a id="rexBtn">📄 REX Factory</a><a id="qualBtn">✓ Qualité</a><a id="oldBtn">🕒 Anciennes gén.</a></div></div></nav>
 <div class="wrap" id="app"></div>
 
 <script src="packs.bundle.js"></script>
@@ -138,6 +138,7 @@
 <script src="staleness.bundle.js"></script>
 <script src="lessons-agg.bundle.js"></script>
 <script src="bridge.bundle.js"></script>
+<script src="rex.bundle.js"></script>
 <script>
 const PACKS = (window.LEARNPACKS || []);
 const PROJECTS = (window.LEARNPROJECTS || []);
@@ -518,7 +519,13 @@ document.getElementById('home').onclick=renderHome;
 document.getElementById('projBtn').onclick=renderProjects;
 document.getElementById('graphBtn').onclick=renderGraph;
 document.getElementById('crossBtn').onclick=renderCross;
+function renderRex(){
+  state.slug=null;
+  app.innerHTML='<div class="rexdoc" style="max-width:840px;margin:0 auto;line-height:1.65">'+(window.REXHTML||'<p class="empty">REX indisponible.</p>')+'</div>';
+  window.scrollTo(0,0);
+}
 document.getElementById('pontBtn').onclick=renderPont;
+document.getElementById('rexBtn').onclick=renderRex;
 document.getElementById('qualBtn').onclick=renderQuality;
 document.getElementById('oldBtn').onclick=renderOld;
 renderHome();
